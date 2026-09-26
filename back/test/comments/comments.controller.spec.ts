@@ -53,7 +53,12 @@ describe('CommentsController', () => {
 
       const result = await controller.create(createDto as any, request);
 
-      expect(service.create).toHaveBeenCalledWith(createDto, 5, 'Dr. Silva');
+      expect(service.create).toHaveBeenCalledWith(
+        createDto,
+        5,
+        'Dr. Silva',
+        3,
+      );
       expect(result).toEqual(mockComment);
     });
 

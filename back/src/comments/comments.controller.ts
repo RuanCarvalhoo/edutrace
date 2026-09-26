@@ -32,8 +32,14 @@ export class CommentsController {
   ) {
     const idUser = request.user.sub;
     const userName = request.user.name;
+    const idLevel = request.user.id_level;
 
-    return this.commentsService.create(createCommentDto, idUser, userName);
+    return this.commentsService.create(
+      createCommentDto,
+      idUser,
+      userName,
+      idLevel,
+    );
   }
 
   @Levels(LEVELS.ALUNO_ESTUDANTE)
