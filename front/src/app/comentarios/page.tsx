@@ -401,32 +401,34 @@ function AnotacoesMultiprofissionais() {
                             Histórico de edições
                           </h3>
 
-                          <ol className="mt-3 border-l-2 border-gray-200">
-                            {versoesAnteriores.map((versao) => (
-                              <li key={versao.numero} className="relative pl-5 pb-4 last:pb-0">
-                                <span
-                                  aria-hidden="true"
-                                  className={`absolute -left-[7px] top-1 h-3 w-3 rounded-full border-2 border-white ${
-                                    versao.original ? 'bg-gray-400' : 'bg-emerald-600'
-                                  }`}
-                                />
-                                <p className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                                  <span className="font-semibold text-gray-800">
-                                    Versão {versao.numero}
-                                  </span>
-                                  {versao.original && (
-                                    <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-700">
-                                      Original
+                          <div className="mt-3 max-h-80 overflow-y-auto pl-2 pr-1">
+                            <ol className="border-l-2 border-gray-200">
+                              {versoesAnteriores.map((versao) => (
+                                <li key={versao.numero} className="relative pl-5 pb-4 last:pb-0">
+                                  <span
+                                    aria-hidden="true"
+                                    className={`absolute -left-[7px] top-1 h-3 w-3 rounded-full border-2 border-white ${
+                                      versao.original ? 'bg-gray-400' : 'bg-emerald-600'
+                                    }`}
+                                  />
+                                  <p className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                    <span className="font-semibold text-gray-800">
+                                      Versão {versao.numero}
                                     </span>
-                                  )}
-                                  <span>escrita em {formatarData(versao.escritaEm)}</span>
-                                </p>
-                                <p className="mt-1.5 rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-600 whitespace-pre-wrap break-words">
-                                  {versao.texto}
-                                </p>
-                              </li>
-                            ))}
-                          </ol>
+                                    {versao.original && (
+                                      <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-700">
+                                        Original
+                                      </span>
+                                    )}
+                                    <span>escrita em {formatarData(versao.escritaEm)}</span>
+                                  </p>
+                                  <p className="mt-1.5 rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-600 whitespace-pre-wrap break-words">
+                                    {versao.texto}
+                                  </p>
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
                         </section>
                       )}
                     </>
