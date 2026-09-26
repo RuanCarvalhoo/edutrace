@@ -43,17 +43,12 @@ function LoginPage() {
       .then((res) => res.json())
       .then((data) => {
         const tag = data.tag_name;
-        const date = new Date(data.published_at).toLocaleDateString("en-US", {
-          month: "short",
-          day: "2-digit",
-          year: "numeric",
-        });
         const url =
           typeof data.html_url === "string" &&
           data.html_url.startsWith(GITHUB_RELEASE_TAG_PREFIX)
             ? data.html_url
             : null;
-        setRelease({ label: `${tag} (${date})`, url });
+        setRelease({ label: tag, url });
       })
       .catch(() => setRelease({ label: "", url: null }));
   }, []);
@@ -270,13 +265,13 @@ function LoginPage() {
                 </div>
               </form>
 
-              <div className="bg-[#f1f4f8]/92 px-4 py-2 text-center text-[11px] font-medium leading-4 text-[#5571a6] sm:px-5 sm:py-5 sm:text-[14px]">
+              <div className="bg-[#f1f4f8]/92 px-4 py-2 text-center text-[10px] font-medium leading-4 text-[#5571a6] sm:px-5 sm:py-5 sm:text-[12px]">
                 {release.label && (
                   <p>
                     Versão{" "}
                     {release.url ? (
                       <a
-                        className="font-bold text-[#006dff] underline"
+                        className="hover:underline"
                         href={release.url}
                         target="_blank"
                         rel="noopener noreferrer"
