@@ -10,6 +10,8 @@ export const LEVELS = {
   PROFISSIONAL_SAUDE: 4,
 } as const;
 
+export const COMMENT_EDIT_LIMIT = 10;
+
 export type Phase = keyof typeof PHASES;
 export type Level = keyof typeof LEVELS;
 export type LevelValue = (typeof LEVELS)[Level];
