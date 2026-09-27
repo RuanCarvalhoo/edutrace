@@ -47,6 +47,7 @@ describe('CommentsService', () => {
             },
             user: {
               findUnique: jest.fn(),
+              findMany: jest.fn(),
             },
             $transaction: jest.fn(
               (callback: (tx: typeof transactionClient) => unknown) =>
@@ -80,7 +81,12 @@ describe('CommentsService', () => {
         .spyOn(prisma.comments, 'create')
         .mockResolvedValue(mockComment as any);
 
-      const result = await service.create(createDto as any, 5, 'Dr. Silva');
+      const result = await service.create(
+        createDto as any,
+        5,
+        'Dr. Silva',
+        LEVELS.PROFISSIONAL_SAUDE,
+      );
 
       expect(prisma.comments.create).toHaveBeenCalledWith({
         data: {
@@ -91,7 +97,10 @@ describe('CommentsService', () => {
         },
         include: editsInclude,
       });
-      expect(result).toEqual(mockComment);
+      expect(result).toEqual({
+        ...mockComment,
+        author_level: LEVELS.PROFISSIONAL_SAUDE,
+      });
     });
 
     it('should ignore fields that do not belong to the model', async () => {
@@ -106,7 +115,12 @@ describe('CommentsService', () => {
         .spyOn(prisma.comments, 'create')
         .mockResolvedValue(mockComment as any);
 
-      await service.create(createDto as any, 5, 'Dr. Silva');
+      await service.create(
+        createDto as any,
+        5,
+        'Dr. Silva',
+        LEVELS.PROFISSIONAL_SAUDE,
+      );
 
       expect(prisma.comments.create).toHaveBeenCalledWith({
         data: {
@@ -128,6 +142,7 @@ describe('CommentsService', () => {
         { id_user: 10, comment: 'Observação importante' } as any,
         5,
         'Dr. Silva',
+        LEVELS.PROFISSIONAL_SAUDE,
       );
 
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
@@ -147,6 +162,7 @@ describe('CommentsService', () => {
         } as any,
         5,
         'Dr. Silva',
+        LEVELS.PROFISSIONAL_SAUDE,
       );
 
       expect(mailService.sendNewCommentNotice).not.toHaveBeenCalled();
@@ -168,6 +184,7 @@ describe('CommentsService', () => {
         } as any,
         5,
         'Dr. Silva',
+        LEVELS.PROFISSIONAL_SAUDE,
       );
 
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
@@ -198,9 +215,13 @@ describe('CommentsService', () => {
         } as any,
         5,
         'Dr. Silva',
+        LEVELS.PROFISSIONAL_SAUDE,
       );
 
-      expect(result).toEqual(mockComment);
+      expect(result).toEqual({
+        ...mockComment,
+        author_level: LEVELS.PROFISSIONAL_SAUDE,
+      });
     });
 
     it('should log the failure by user id when the email rejects with a non-Error value', async () => {
@@ -225,9 +246,13 @@ describe('CommentsService', () => {
         } as any,
         5,
         'Dr. Silva',
+        LEVELS.PROFISSIONAL_SAUDE,
       );
 
-      expect(result).toEqual(mockComment);
+      expect(result).toEqual({
+        ...mockComment,
+        author_level: LEVELS.PROFISSIONAL_SAUDE,
+      });
       expect(loggerError).toHaveBeenCalledWith(
         'Falha ao enviar o aviso de anotação para o usuário 10',
         'timeout do SMTP',
@@ -251,6 +276,7 @@ describe('CommentsService', () => {
         } as any,
         5,
         'Dr. Silva',
+        LEVELS.PROFISSIONAL_SAUDE,
       );
 
       expect(mailService.sendNewCommentNotice).not.toHaveBeenCalled();
@@ -288,7 +314,10 @@ describe('CommentsService', () => {
         data: { comment: 'Texto corrigido' },
         include: editsInclude,
       });
-      expect(result).toEqual(updatedComment);
+      expect(result).toEqual({
+        ...updatedComment,
+        author_level: LEVELS.PROFISSIONAL_SAUDE,
+      });
     });
 
     it('should load the comment with its edit history', async () => {
@@ -322,7 +351,10 @@ describe('CommentsService', () => {
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(transactionClient.commentEdits.create).not.toHaveBeenCalled();
-      expect(result).toEqual(mockComment);
+      expect(result).toEqual({
+        ...mockComment,
+        author_level: LEVELS.PROFISSIONAL_SAUDE,
+      });
     });
 
     it('should throw ForbiddenException when the requester is not the author', async () => {
@@ -407,7 +439,10 @@ describe('CommentsService', () => {
           authorRequest,
         );
 
-        expect(result).toEqual(comment);
+        expect(result).toEqual({
+          ...comment,
+          author_level: LEVELS.PROFISSIONAL_SAUDE,
+        });
         expect(prisma.$transaction).not.toHaveBeenCalled();
       });
     });
@@ -482,6 +517,11 @@ describe('CommentsService', () => {
       jest
         .spyOn(prisma.comments, 'findMany')
         .mockResolvedValue(comments as any);
+      jest
+        .spyOn(prisma.user, 'findMany')
+        .mockResolvedValue([
+          { id: 5, id_level: LEVELS.PROFISSIONAL_SAUDE },
+        ] as any);
 
       const result = await service.findAllByIdUser(10, request);
 
@@ -489,7 +529,9 @@ describe('CommentsService', () => {
         where: { id_user: 10 },
         include: editsInclude,
       });
-      expect(result).toEqual(comments);
+      expect(result).toEqual([
+        { ...mockComment, author_level: LEVELS.PROFISSIONAL_SAUDE },
+      ]);
     });
 
     it('should return comments when student is viewing their own profile', async () => {
@@ -501,10 +543,74 @@ describe('CommentsService', () => {
       jest
         .spyOn(prisma.comments, 'findMany')
         .mockResolvedValue(comments as any);
+      jest
+        .spyOn(prisma.user, 'findMany')
+        .mockResolvedValue([
+          { id: 5, id_level: LEVELS.PROFISSIONAL_SAUDE },
+        ] as any);
 
       const result = await service.findAllByIdUser(10, request);
 
-      expect(result).toEqual(comments);
+      expect(result).toEqual([
+        { ...mockComment, author_level: LEVELS.PROFISSIONAL_SAUDE },
+      ]);
+    });
+
+    it('should look up each author level once, selecting only id and id_level', async () => {
+      const request = {
+        user: { sub: 10, id_level: LEVELS.ALUNO_ESTUDANTE },
+      } as any;
+      const comments = [
+        { ...mockComment, id: 1, id_author: 5 },
+        { ...mockComment, id: 2, id_author: 6 },
+        { ...mockComment, id: 3, id_author: 5 },
+      ];
+      jest
+        .spyOn(prisma.comments, 'findMany')
+        .mockResolvedValue(comments as any);
+      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([
+        { id: 5, id_level: LEVELS.PROFISSIONAL_SAUDE },
+        { id: 6, id_level: LEVELS.PROFISSIONAL_EDUCACAO },
+      ] as any);
+
+      const result = await service.findAllByIdUser(10, request);
+
+      expect(prisma.user.findMany).toHaveBeenCalledTimes(1);
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
+        where: { id: { in: [5, 6] } },
+        select: { id: true, id_level: true },
+      });
+      expect(result.map((c) => [c.id, c.author_level])).toEqual([
+        [1, LEVELS.PROFISSIONAL_SAUDE],
+        [2, LEVELS.PROFISSIONAL_EDUCACAO],
+        [3, LEVELS.PROFISSIONAL_SAUDE],
+      ]);
+    });
+
+    it('should return author_level null when the author no longer exists', async () => {
+      const request = {
+        user: { sub: 99, id_level: LEVELS.ADMIN },
+      } as any;
+      jest
+        .spyOn(prisma.comments, 'findMany')
+        .mockResolvedValue([mockComment] as any);
+      jest.spyOn(prisma.user, 'findMany').mockResolvedValue([] as any);
+
+      const result = await service.findAllByIdUser(10, request);
+
+      expect(result).toEqual([{ ...mockComment, author_level: null }]);
+    });
+
+    it('should not look up authors when the student has no comments', async () => {
+      const request = {
+        user: { sub: 10, id_level: LEVELS.ALUNO_ESTUDANTE },
+      } as any;
+      jest.spyOn(prisma.comments, 'findMany').mockResolvedValue([] as any);
+
+      const result = await service.findAllByIdUser(10, request);
+
+      expect(result).toEqual([]);
+      expect(prisma.user.findMany).not.toHaveBeenCalled();
     });
 
     it('should throw ForbiddenException when student tries to view another user comments', async () => {

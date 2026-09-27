@@ -30,6 +30,7 @@ export class CommentsService {
     createCommentDto: CreateCommentDto,
     idAuthor: number,
     userName: string,
+    authorLevel: number,
   ) {
     const { comment, id_user, notify_by_email } = createCommentDto;
 
@@ -47,7 +48,7 @@ export class CommentsService {
       await this.notifyStudent(id_user, 'created');
     }
 
-    return commentCreated;
+    return { ...commentCreated, author_level: authorLevel };
   }
 
   async update(
@@ -103,7 +104,7 @@ export class CommentsService {
       await this.notifyStudent(existingComment.id_user, 'updated');
     }
 
-    return commentUpdated;
+    return { ...commentUpdated, author_level: request.user.id_level };
   }
 
   async findAllByIdUser(idUser: number, request: AuthenticatedRequest) {
@@ -122,7 +123,31 @@ export class CommentsService {
       },
       include: editsInclude,
     });
-    return allComments;
+
+    return this.withAuthorLevel(allComments);
+  }
+
+  private async withAuthorLevel<T extends { id_author: number }>(
+    comments: T[],
+  ) {
+    const authorIds = [...new Set(comments.map((c) => c.id_author))];
+
+    if (authorIds.length === 0) {
+      return [];
+    }
+
+    const authors = await this.prisma.user.findMany({
+      where: { id: { in: authorIds } },
+      select: { id: true, id_level: true },
+    });
+    const levelByAuthor = new Map(
+      authors.map((author) => [author.id, author.id_level]),
+    );
+
+    return comments.map((comment) => ({
+      ...comment,
+      author_level: levelByAuthor.get(comment.id_author) ?? null,
+    }));
   }
 
   private async notifyStudent(idUser: number, event: 'created' | 'updated') {
