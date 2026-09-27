@@ -28,6 +28,7 @@ import Swal from 'sweetalert2';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 const LIMITE_CARACTERES = 1000;
+const LIMITE_EDICOES = 10;
 
 function avisarErro(titulo: string, erro: unknown) {
   Swal.fire({
@@ -444,6 +445,10 @@ function AnotacoesMultiprofissionais() {
                 const idHistorico = `historico-anotacao-${anotacao.id}`;
                 const historicoAberto = historicosAbertos.includes(anotacao.id);
                 const podeEditar = user?.sub === anotacao.id_author;
+                const edicoesRestantes = Math.max(
+                  LIMITE_EDICOES - (anotacao.edits?.length ?? 0),
+                  0,
+                );
                 const emEdicao = editandoId === anotacao.id;
 
                 return (
@@ -542,14 +547,27 @@ function AnotacoesMultiprofissionais() {
                             )}
 
                             {podeEditar && (
-                              <button
-                                type="button"
-                                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                                onClick={() => iniciarEdicao(anotacao)}
-                              >
-                                <Pencil size={14} aria-hidden="true" />
-                                Editar
-                              </button>
+                              edicoesRestantes > 0 ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] text-gray-400">
+                                    {edicoesRestantes === 1
+                                      ? 'Resta 1 edição'
+                                      : `Restam ${edicoesRestantes} edições`}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                                    onClick={() => iniciarEdicao(anotacao)}
+                                  >
+                                    <Pencil size={14} aria-hidden="true" />
+                                    Editar
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-gray-400">
+                                  Limite de {LIMITE_EDICOES} edições atingido
+                                </span>
+                              )
                             )}
                           </div>
                         )}

@@ -3,7 +3,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { MailService } from 'src/mail/mail.service';
 import { CommentsService } from 'src/comments/comments.service';
-import { LEVELS } from 'src/constants';
+import { COMMENT_EDIT_LIMIT, LEVELS } from 'src/constants';
 
 describe('CommentsService', () => {
   let service: CommentsService;
@@ -378,6 +378,73 @@ describe('CommentsService', () => {
         ),
       );
       expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    describe('edit limit', () => {
+      const withEdits = (total: number) => ({
+        ...mockComment,
+        edits: Array.from({ length: total }, (_, i) => ({
+          id: i + 1,
+          id_comment: 1,
+          comment: `Versão ${i + 1}`,
+          created_at: new Date(),
+        })),
+      });
+
+      it('should allow the tenth edit', async () => {
+        jest
+          .spyOn(prisma.comments, 'findUnique')
+          .mockResolvedValue(withEdits(COMMENT_EDIT_LIMIT - 1) as any);
+        transactionClient.comments.update.mockResolvedValue(mockComment);
+
+        await service.update(
+          1,
+          { comment: 'Décima edição' } as any,
+          authorRequest,
+        );
+
+        expect(transactionClient.commentEdits.create).toHaveBeenCalled();
+        expect(transactionClient.comments.update).toHaveBeenCalled();
+      });
+
+      it('should reject a new edit once the limit is reached, without saving or emailing', async () => {
+        jest
+          .spyOn(prisma.comments, 'findUnique')
+          .mockResolvedValue(withEdits(COMMENT_EDIT_LIMIT) as any);
+
+        await expect(
+          service.update(
+            1,
+            { comment: 'Décima primeira edição', notify_by_email: true } as any,
+            authorRequest,
+          ),
+        ).rejects.toThrow(
+          new ForbiddenException(
+            'Esta anotação atingiu o limite de 10 edições',
+          ),
+        );
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+        expect(mailService.sendUpdatedCommentNotice).not.toHaveBeenCalled();
+      });
+
+      it('should not fail when the text is unchanged at the limit', async () => {
+        const comment = withEdits(COMMENT_EDIT_LIMIT);
+        jest
+          .spyOn(prisma.comments, 'findUnique')
+          .mockResolvedValue(comment as any);
+
+        const result = await service.update(
+          1,
+          { comment: 'Observação importante' } as any,
+          authorRequest,
+        );
+
+        expect(result).toEqual({
+          ...comment,
+          author_level: LEVELS.PROFISSIONAL_SAUDE,
+        });
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+      });
     });
 
     it('should throw NotFoundException when the comment does not exist', async () => {

@@ -8,7 +8,7 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { MailService } from 'src/mail/mail.service';
-import { LEVELS } from 'src/constants';
+import { COMMENT_EDIT_LIMIT, LEVELS } from 'src/constants';
 import { AuthenticatedRequest } from './types/express';
 
 const editsInclude = {
@@ -72,6 +72,15 @@ export class CommentsService {
     }
 
     const { comment, notify_by_email } = updateCommentDto;
+
+    if (
+      comment !== existingComment.comment &&
+      existingComment.edits.length >= COMMENT_EDIT_LIMIT
+    ) {
+      throw new ForbiddenException(
+        `Esta anotação atingiu o limite de ${COMMENT_EDIT_LIMIT} edições`,
+      );
+    }
 
     const commentUpdated =
       comment === existingComment.comment
