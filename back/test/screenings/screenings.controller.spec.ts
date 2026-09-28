@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScreeningsController } from 'src/screenings/screenings.controller';
 import { CreateScreeningDto } from 'src/screenings/dto/create-screening.dto';
+import { UpdateScreeningDto } from 'src/screenings/dto/update-screening.dto';
 import { ScreeningsService } from 'src/screenings/screenings.service';
 import { LEVELS } from 'src/constants';
 
@@ -266,6 +267,16 @@ describe('ScreeningsController', () => {
 
       expect(await controller.update(email, updateDto)).toEqual(result);
       expect(service.update).toHaveBeenCalledWith(email, updateDto);
+    });
+
+    it('should type the body as UpdateScreeningDto so the ValidationPipe validates it', () => {
+      const [, bodyType] = Reflect.getMetadata(
+        'design:paramtypes',
+        ScreeningsController.prototype,
+        'update',
+      );
+
+      expect(bodyType).toBe(UpdateScreeningDto);
     });
   });
 

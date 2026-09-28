@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ScreeningsService } from './screenings.service';
 import { CreateScreeningDto } from './dto/create-screening.dto';
+import { UpdateScreeningDto } from './dto/update-screening.dto';
 import { Levels } from 'src/auth/decorators/levels.decorator';
 import { LEVELS } from 'src/constants';
 import { AuthenticatedRequest } from 'src/comments/types/express';
@@ -42,7 +43,7 @@ export class ScreeningsController {
   @Patch(':email')
   update(
     @Param('email') email: string,
-    @Body() updateScreeningDto: Partial<CreateScreeningDto>,
+    @Body() updateScreeningDto: UpdateScreeningDto,
   ) {
     return this.screeningsService.update(email, updateScreeningDto);
   }
