@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { TokenPayload } from './services/auth/decodeToken'
+import type { SessionUser } from './services/auth/sessionUser'
 import { ADMIN, ESTUDANTE } from './consts'
+import { findSessionCookie, isSecureSessionCookie } from './utils/sessionCookie'
 
 // O token é verificado pelo backend, que é quem guarda o segredo de assinatura.
 // Decodificar o JWT aqui aceitaria qualquer assinatura e tornaria as regras
 // abaixo contornáveis com um cookie montado à mão.
 type SessionCheck =
-  | { status: 'valid'; payload: TokenPayload }
+  | { status: 'valid'; payload: SessionUser }
   | { status: 'invalid' }
   | { status: 'unavailable' }
 
@@ -49,7 +50,7 @@ async function checkSession(token: string): Promise<SessionCheck> {
       return { status: 'unavailable' }
     }
 
-    return { status: 'valid', payload: (await response.json()) as TokenPayload }
+    return { status: 'valid', payload: (await response.json()) as SessionUser }
   } catch (error) {
     console.error('Erro ao verificar a sessão no backend:', error)
     return { status: 'unavailable' }
@@ -60,28 +61,33 @@ function redirectToLogin(request: NextRequest) {
   return NextResponse.redirect(new URL('/', request.url))
 }
 
-function clearToken(response: NextResponse) {
-  response.cookies.set('token', '', {
+function clearToken(response: NextResponse, name: string) {
+  response.cookies.set(name, '', {
     path: '/',
     expires: new Date(0),
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecureSessionCookie(name),
   })
 
   return response
 }
 
 export async function middleware(request: NextRequest) {
-  const token = request.cookies.get('token')?.value
+  const sessionCookie = findSessionCookie(
+    (name) => request.cookies.get(name)?.value,
+  )
   const pathname = request.nextUrl.pathname
 
   const isLoginPage = pathname === '/' || pathname === '/login'
   const isPublicPage = isLoginPage || pathname === '/forgot-password'
   const changePasswordPage = '/alterar-dados'
 
-  if (!token) {
+  if (!sessionCookie) {
     return isPublicPage ? NextResponse.next() : redirectToLogin(request)
   }
 
-  const session = await checkSession(token)
+  const session = await checkSession(sessionCookie.value)
 
   // Token recusado pelo backend: assinatura inválida, expirado ou usuário
   // inexistente. O cookie é descartado para não repetir a verificação a cada
@@ -89,6 +95,7 @@ export async function middleware(request: NextRequest) {
   if (session.status === 'invalid') {
     return clearToken(
       isPublicPage ? NextResponse.next() : redirectToLogin(request),
+      sessionCookie.name,
     )
   }
 
