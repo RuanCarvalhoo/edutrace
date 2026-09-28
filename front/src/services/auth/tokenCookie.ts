@@ -1,3 +1,6 @@
+// Versões anteriores do front gravavam o token num cookie legível por
+// JavaScript. O token de sessão agora vem só no cookie HttpOnly emitido pelo
+// back, que a página não lê nem apaga; o que resta aqui é apagar o cookie antigo.
 const TOKEN_COOKIE_NAME = 'token';
 
 function securityAttributes() {
@@ -7,26 +10,12 @@ function securityAttributes() {
   return `path=/; SameSite=Lax${isHttps ? '; Secure' : ''}`;
 }
 
-export function setTokenCookie(token: string) {
-  document.cookie = `${TOKEN_COOKIE_NAME}=${token}; ${securityAttributes()}`;
-}
-
-export function getTokenCookie() {
-  if (typeof document === 'undefined') return null;
-
-  return (
-    document.cookie
-      .split(';')
-      .map((item) => item.trim())
-      .find((item) => item.startsWith(`${TOKEN_COOKIE_NAME}=`))
-      ?.split('=')[1] ?? null
-  );
-}
-
 export function clearTokenCookie() {
   clearCookie(TOKEN_COOKIE_NAME);
 }
 
 export function clearCookie(name: string) {
+  if (typeof document === 'undefined') return;
+
   document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; ${securityAttributes()}`;
 }
