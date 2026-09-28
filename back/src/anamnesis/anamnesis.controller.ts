@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { AnamnesisService } from './anamnesis.service';
 import { CreateAnamnesisDto } from './dto/create-anamnesis.dto';
+import { UpdateAnamnesisDto } from './dto/update-anamnesis.dto';
 import { Levels } from 'src/auth/decorators/levels.decorator';
 import { LEVELS } from 'src/constants';
 import { AuthenticatedRequest } from 'src/comments/types/express';
@@ -42,7 +43,7 @@ export class AnamnesisController {
   @Patch(':email')
   update(
     @Param('email') email: string,
-    @Body() updateAnamnesisDto: Partial<CreateAnamnesisDto>,
+    @Body() updateAnamnesisDto: UpdateAnamnesisDto,
   ) {
     return this.anamnesisService.update(email, updateAnamnesisDto);
   }

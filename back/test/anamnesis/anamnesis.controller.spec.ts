@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AnamnesisController } from 'src/anamnesis/anamnesis.controller';
 import { AnamnesisService } from 'src/anamnesis/anamnesis.service';
 import { CreateAnamnesisDto } from 'src/anamnesis/dto/create-anamnesis.dto';
+import { UpdateAnamnesisDto } from 'src/anamnesis/dto/update-anamnesis.dto';
 import { LEVELS } from 'src/constants';
 
 describe('AnamnesisController', () => {
@@ -790,6 +791,16 @@ describe('AnamnesisController', () => {
 
       expect(await controller.update(email, updateDto)).toEqual(result);
       expect(service.update).toHaveBeenCalledWith(email, updateDto);
+    });
+
+    it('should type the body as UpdateAnamnesisDto so the ValidationPipe validates it', () => {
+      const [, bodyType] = Reflect.getMetadata(
+        'design:paramtypes',
+        AnamnesisController.prototype,
+        'update',
+      );
+
+      expect(bodyType).toBe(UpdateAnamnesisDto);
     });
   });
 
