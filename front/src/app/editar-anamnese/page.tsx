@@ -11,7 +11,9 @@ import { AnamnesisData } from "@/interfaces/AnamnesisData";
 import { decodeToken } from "@/services/auth/decodeToken";
 import { useAuth } from "@/contexts/AuthContext";
 import { ESTUDANTE, PROFISSIONAL_EDUCACAO } from "@/consts";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useEstudanteDaUrl } from "@/hooks/useEstudanteDaUrl";
+import { rotaDoEstudante } from "@/utils/estudanteDaUrl";
 
 const BrInput = dynamic(() =>
   import("@govbr-ds-testing/webcomponents-react").then((mod) => mod.BrInput), { ssr: false }
@@ -43,9 +45,7 @@ export default function AnamnesePageWrapper() {
 }
 
 function AnamnesePage() {
-  const searchParams = useSearchParams();
-  const email = searchParams.get("email");
-  const nome = searchParams.get("nome");
+  const { id, email, carregando } = useEstudanteDaUrl();
 
   const { loading } = useAuth();
   const router = useRouter();
@@ -68,7 +68,7 @@ function AnamnesePage() {
         const isStudent = token.id_level === ESTUDANTE;
 
         if (token.id_level === PROFISSIONAL_EDUCACAO || isStudent) {
-          router.push(`/anamnese${email ? `?email=${email}&nome=${nome}` : ''}`);
+          router.push(rotaDoEstudante('/anamnese', id));
           return;
         }
 
@@ -88,7 +88,7 @@ function AnamnesePage() {
     }
 
     fetchData();
-  }, [email, nome, router]);
+  }, [email, id, router]);
 
 
   const handleInputChange = (name: string, value: string) => {
@@ -140,7 +140,7 @@ function AnamnesePage() {
         const dadosAtualizados = { ...formData };
         await patchAnamnesis(dadosAtualizados, email);
         alert("Anamnese atualizada com sucesso!");
-        router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`);
+        router.push(rotaDoEstudante('/estudantes/visualizar', id));
     } catch (error) {
         console.error("Erro ao atualizar Anamnese: ", error);
         alert("Falha ao atualizar Anamnese. Verifique o console para mais detalhes.");
@@ -148,7 +148,7 @@ function AnamnesePage() {
     };
 
 
-  if (isLoading || loading) {
+  if (isLoading || loading || carregando) {
       return <Loading />;
   }
 
@@ -158,7 +158,7 @@ function AnamnesePage() {
         >
           <div className="p-6 text-center">
                 <h2 className="text-xl font-bold text-green-700">O estudante ainda não possui uma Anamnese cadastrada</h2>
-                <button className="mt-6 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`)}>
+                <button className="mt-6 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/estudantes/visualizar', id))}>
                   Voltar
                 </button>
         </div>
@@ -461,7 +461,7 @@ function AnamnesePage() {
 
           {/* Botões */}
           <div className="flex justify-center gap-4 mt-8">
-            <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/anamnese?email=${email}&nome=${nome}`)}>
+            <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/anamnese', id))}>
               Cancelar
             </button>
             <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={handleEdit}>
