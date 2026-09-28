@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { PlansEducationService } from './plans-education.service';
 import { CreatePlansEducationDto } from './dto/create-plans-education.dto';
+import { UpdatePlansEducationDto } from './dto/update-plans-education.dto';
 import { Levels } from 'src/auth/decorators/levels.decorator';
 import { LEVELS } from 'src/constants';
 import { AuthenticatedRequest } from 'src/comments/types/express';
@@ -40,10 +41,7 @@ export class PlansEducationController {
 
   @Levels(LEVELS.ALUNO_ESTUDANTE, LEVELS.PROFISSIONAL_SAUDE)
   @Patch(':email')
-  update(
-    @Param('email') email: string,
-    @Body() data: Partial<CreatePlansEducationDto>,
-  ) {
+  update(@Param('email') email: string, @Body() data: UpdatePlansEducationDto) {
     return this.plansEducationService.update(email, data);
   }
 

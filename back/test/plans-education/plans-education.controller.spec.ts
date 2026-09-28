@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CreatePlansEducationDto } from 'src/plans-education/dto/create-plans-education.dto';
+import { UpdatePlansEducationDto } from 'src/plans-education/dto/update-plans-education.dto';
 import { PlansEducationController } from 'src/plans-education/plans-education.controller';
 import { PlansEducationService } from 'src/plans-education/plans-education.service';
 import { LEVELS } from 'src/constants';
@@ -646,6 +647,16 @@ describe('PlansEducationController', () => {
 
       expect(await controller.update(email, updateDto)).toEqual(result);
       expect(service.update).toHaveBeenCalledWith(email, updateDto);
+    });
+
+    it('should type the body as UpdatePlansEducationDto so the ValidationPipe validates it', () => {
+      const [, bodyType] = Reflect.getMetadata(
+        'design:paramtypes',
+        PlansEducationController.prototype,
+        'update',
+      );
+
+      expect(bodyType).toBe(UpdatePlansEducationDto);
     });
   });
 
