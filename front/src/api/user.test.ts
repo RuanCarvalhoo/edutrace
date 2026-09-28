@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { getAllUsers } from './user';
+import { getAllUsers, updateProfile } from './user';
 
 const API_URL = 'http://api.test';
 
@@ -50,6 +50,43 @@ describe('getAllUsers', () => {
 
     await assert.rejects(getAllUsers(), {
       message: 'Nível de acesso insuficiente',
+    });
+  });
+});
+
+describe('updateProfile', () => {
+  let storageWrites: string[];
+
+  beforeEach(() => {
+    storageWrites = [];
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: { setItem: (key: string) => storageWrites.push(key) },
+    });
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, 'localStorage');
+  });
+
+  it('sends a PATCH to /auth/me and leaves the new token to the session cookie', async () => {
+    respondWith(200, { message: 'Dados atualizados.' });
+    const payload = { password: 'novaSenha123', currentPassword: 'senhaAtual123' };
+
+    const result = await updateProfile(payload);
+
+    assert.deepEqual(result, { message: 'Dados atualizados.' });
+    assert.equal(calls[0].url, `${API_URL}/auth/me`);
+    assert.equal(calls[0].init.method, 'PATCH');
+    assert.equal(calls[0].init.body, JSON.stringify(payload));
+    assert.deepEqual(storageWrites, []);
+  });
+
+  it('rejects with the API message when the current password is wrong', async () => {
+    respondWith(401, { message: 'Senha atual incorreta' });
+
+    await assert.rejects(updateProfile({ currentPassword: 'errada' }), {
+      message: 'Senha atual incorreta',
     });
   });
 });
