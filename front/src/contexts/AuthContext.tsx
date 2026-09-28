@@ -1,13 +1,14 @@
 "use client";
 
-import { decodeToken, TokenPayload } from "@/services/auth/decodeToken";
-import React, { createContext, useContext, useState } from "react";
+import { clearSession } from "@/services/auth/session";
+import { fetchSessionUser, SessionUser } from "@/services/auth/sessionUser";
+import React, { createContext, useContext, useEffect, useState } from "react";
 
 type AuthContextType = {
-  user: TokenPayload | null;
+  user: SessionUser | null;
   isAuthenticated: boolean;
   loading: boolean;
-  setUser: React.Dispatch<React.SetStateAction<TokenPayload | null>>; 
+  setUser: React.Dispatch<React.SetStateAction<SessionUser | null>>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,8 +19,23 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<TokenPayload | null>(() => decodeToken());
-  const loading = false;
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    clearSession();
+
+    let ativo = true;
+    fetchSessionUser().then((sessionUser) => {
+      if (!ativo) return;
+      setUser(sessionUser);
+      setLoading(false);
+    });
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   return (
     <AuthContext.Provider
