@@ -13,7 +13,7 @@
 
 import http from 'k6/http';
 import { check, group, sleep } from 'k6';
-import { login, authHeaders } from '../../helpers/auth.js';
+import { login, authHeaders, sessionTokenFrom, forgetSessionCookie } from '../../helpers/auth.js';
 import { smokeOptions } from '../../config/options.js';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
@@ -43,15 +43,11 @@ export default function (data) {
       JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
       { headers: jsonHeaders },
     );
+    const loginToken = sessionTokenFrom(loginRes);
+    forgetSessionCookie(BASE_URL);
     check(loginRes, {
       '[smoke][auth] POST /auth/login → 200': (r) => r.status === 200,
-      '[smoke][auth] token presente': (r) => {
-        try { 
-          return !!JSON.parse(r.body).access_token; 
-        } catch (e) { 
-          return false; 
-        }
-      },
+      '[smoke][auth] token presente no cookie de sessão': () => !!loginToken,
     });
 
     // Profile
