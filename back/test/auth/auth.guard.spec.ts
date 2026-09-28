@@ -321,4 +321,80 @@ describe('AuthGuard', () => {
       await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
     });
   });
+
+  describe('session cookie', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+
+    function contextWithRequest(request: Record<string, any>): ExecutionContext {
+      return {
+        switchToHttp: () => ({ getRequest: () => request }),
+        getHandler: () => ({}),
+        getClass: () => ({}),
+      } as any;
+    }
+
+    beforeEach(() => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+      jest.spyOn(reflector, 'get').mockReturnValue(undefined);
+      jest
+        .spyOn(jwtService, 'verifyAsync')
+        .mockResolvedValue({ sub: 1, id_level: 1, jti: 'sessao-valida' });
+    });
+
+    afterEach(() => {
+      process.env.NODE_ENV = originalNodeEnv;
+    });
+
+    it('should read the token from the session cookie', async () => {
+      const request = {
+        headers: {},
+        cookies: { edutrace_session: 'token.do.cookie' },
+      };
+
+      await expect(guard.canActivate(contextWithRequest(request))).resolves.toBe(true);
+      expect(jwtService.verifyAsync).toHaveBeenCalledWith('token.do.cookie', expect.any(Object));
+      expect(request).toHaveProperty('user.jti', 'sessao-valida');
+    });
+
+    it('should read the __Host- cookie in production', async () => {
+      process.env.NODE_ENV = 'production';
+      const request = {
+        headers: {},
+        cookies: { '__Host-edutrace_session': 'token.de.producao' },
+      };
+
+      await expect(guard.canActivate(contextWithRequest(request))).resolves.toBe(true);
+      expect(jwtService.verifyAsync).toHaveBeenCalledWith('token.de.producao', expect.any(Object));
+    });
+
+    it('should prefer the cookie over the Authorization header', async () => {
+      const request = {
+        headers: { authorization: 'Bearer token.do.header' },
+        cookies: { edutrace_session: 'token.do.cookie' },
+      };
+
+      await guard.canActivate(contextWithRequest(request));
+
+      expect(jwtService.verifyAsync).toHaveBeenCalledWith('token.do.cookie', expect.any(Object));
+    });
+
+    it('should still accept the Bearer header when there is no session cookie', async () => {
+      const request = {
+        headers: { authorization: 'Bearer token.do.header' },
+        cookies: {},
+      };
+
+      await expect(guard.canActivate(contextWithRequest(request))).resolves.toBe(true);
+      expect(jwtService.verifyAsync).toHaveBeenCalledWith('token.do.header', expect.any(Object));
+    });
+
+    it('should reject a request whose only cookie has another name', async () => {
+      const request = { headers: {}, cookies: { token: 'token.antigo' } };
+
+      await expect(guard.canActivate(contextWithRequest(request))).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(jwtService.verifyAsync).not.toHaveBeenCalled();
+    });
+  });
 });
