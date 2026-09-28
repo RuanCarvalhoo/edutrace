@@ -48,9 +48,9 @@ describe('UpdateAnamnesisDto', () => {
     ]);
   });
 
-  it('should reject email sent as a number', async () => {
-    expect(await messages({ email: 123 })).toEqual([
-      'O campo email deve ser uma string.',
-    ]);
+  it('should drop the email that links the anamnesis to its student', async () => {
+    await expect(
+      validate({ identification, email: 'outro.estudante@example.com' }),
+    ).resolves.toEqual({ identification });
   });
 });

@@ -40,6 +40,19 @@ describe('UpdatePlansEducationDto', () => {
     ).resolves.toEqual({ objectives: 'Novos objetivos' });
   });
 
+  it('should drop the student_email that links the plan to its student', async () => {
+    await expect(
+      validate({
+        objectives: 'Novos objetivos',
+        professor_email: 'professor@example.com',
+        student_email: 'outro.estudante@example.com',
+      }),
+    ).resolves.toEqual({
+      objectives: 'Novos objetivos',
+      professor_email: 'professor@example.com',
+    });
+  });
+
   it('should reject academic_semester sent as text', async () => {
     expect(await messages({ academic_semester: 'primeiro' })).toEqual([
       'O campo academic_semester deve ser um objeto JSON.',
