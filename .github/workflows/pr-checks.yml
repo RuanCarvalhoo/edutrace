@@ -272,7 +272,6 @@ jobs:
           cat > ci.env <<'VARS'
           PORT_MACHINE_FRONTEND=8080
           PORT_MACHINE_BACKEND=3001
-          PORT_MACHINE_DB=5432
           POSTGRES_USER=ci
           POSTGRES_PASSWORD=ci
           POSTGRES_DB=ci
@@ -323,3 +322,60 @@ jobs:
           fi
 
           echo "✅ Serviço do front aponta para $imagem e escuta em $destino."
+
+# --------------------------------------------------------------------
+# CONFIG – PORTA DO POSTGRESQL NO COMPOSE DE PRODUÇÃO -----------------
+# --------------------------------------------------------------------
+  database-port-check:
+    name: Config – Porta do PostgreSQL no compose de produção
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy_config == 'true' }}
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # O back alcança o banco pelo nome do serviço na rede app-net, então o
+      # PostgreSQL não precisa de porta no host. Porta publicada abre o banco em
+      # todas as interfaces, e as regras de iptables do Docker passam por cima do
+      # firewall do host. PORT_MACHINE_DB continua definida aqui para que um
+      # mapeamento "${PORT_MACHINE_DB}:5432" devolvido ao compose apareça na
+      # renderização e reprove o job.
+      - name: Verificar que o PostgreSQL não publica porta no host
+        run: |
+          cat > ci.env <<'VARS'
+          PORT_MACHINE_FRONTEND=8080
+          PORT_MACHINE_BACKEND=3001
+          PORT_MACHINE_DB=5432
+          POSTGRES_USER=ci
+          POSTGRES_PASSWORD=ci
+          POSTGRES_DB=ci
+          DATABASE_URL=postgresql://ci:ci@postgres-db:5432/ci
+          NODE_ENV=production
+          SECRET_KEY=ci
+          FRONTEND_URL=http://localhost:8080
+          ADMIN_PASSWORD=ci
+          SMTP_HOST=ci
+          SMTP_PORT=587
+          SMTP_USER=ci
+          SMTP_PASS=ci
+          MAIL_FROM=ci
+          GOOGLE_CLIENT_ID=ci
+          API_URL=https://api.exemplo
+          NEXT_PUBLIC_API_EDU_TRACE=https://api.exemplo
+          INTERNAL_API_URL=http://nest-app:3000
+          CLARITY_PROJECT_ID=off
+          VARS
+
+          docker compose --env-file ci.env -f docker-compose-prod.yml config --format json > compose.json
+
+          quantidade=$(python3 -c "import json; s=json.load(open('compose.json'))['services']['postgres-db']; print(len(s.get('ports', [])))")
+
+          if [ "$quantidade" -ne 0 ]; then
+            echo "ERRO: docker-compose-prod.yml publica $quantidade porta(s) do PostgreSQL no host."
+            echo "   O back conecta por postgres-db:5432 na rede app-net; remova o bloco ports do serviço postgres-db."
+            exit 1
+          fi
+
+          echo "OK: o PostgreSQL do compose de produção não publica porta no host."
