@@ -1,9 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
 import { validateSecretKey } from './common/validate-secret-key';
 import { setupSwagger } from './common/setup-swagger';
+import { createValidationPipe } from './common/validation-pipe';
 
 async function bootstrap() {
   validateSecretKey();
@@ -25,10 +25,7 @@ async function bootstrap() {
     origin: isProduction ? origins : true,
     credentials: true,
   });
-  // transform: true faz o controller receber a instância do DTO, e não o corpo
-  // cru. Sem isso o @Transform do CPF normalizaria apenas o objeto usado na
-  // validação, e o valor com máscara chegaria ao banco assim mesmo.
-  app.useGlobalPipes(new ValidationPipe({ transform: true }));
+  app.useGlobalPipes(createValidationPipe());
 
   setupSwagger(app, isProduction);
 
