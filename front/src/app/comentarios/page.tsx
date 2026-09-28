@@ -10,7 +10,6 @@ import {
 } from '@/api/comments';
 import { useAuth } from '@/contexts/AuthContext';
 import { CommentData } from '@/interfaces/CommentData';
-import { TokenPayload, decodeToken } from '@/services/auth/decodeToken';
 import { formatarData } from '@/utils/formatDate';
 import { buildPreviousVersions, lastEditedAt } from '@/utils/commentVersions';
 import {
@@ -65,14 +64,14 @@ function AnotacoesMultiprofissionais() {
   const [filtros, setFiltros] = useState<CommentFilters>(FILTROS_VAZIOS);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const { user, loading } = useAuth();
-  const token = useMemo<TokenPayload | null>(() => decodeToken(), []);
+  const token = user;
   const isStudent = token?.id_level === ESTUDANTE;
 
   useEffect(() => {
-    if (!token) {
+    if (!loading && !token) {
       router.push('/login');
     }
-  }, [token, router]);
+  }, [loading, token, router]);
 
   // O estudante vê as próprias anotações (token.sub); o profissional, as do
   // estudante indicado pelo id da URL.
