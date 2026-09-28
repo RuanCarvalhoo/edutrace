@@ -44,13 +44,21 @@ export class UsersController {
     return maskUserCpf(await this.usersService.create(createUserDto));
   }
 
-  @Levels(LEVELS.ALUNO_ESTUDANTE)
+  @Levels(
+    LEVELS.ALUNO_ESTUDANTE,
+    LEVELS.PROFISSIONAL_EDUCACAO,
+    LEVELS.PROFISSIONAL_SAUDE,
+  )
   @Get()
   async findAll() {
     return maskUsersCpf(await this.usersService.findAll());
   }
 
-  @Levels(LEVELS.ALUNO_ESTUDANTE)
+  @Levels(
+    LEVELS.ALUNO_ESTUDANTE,
+    LEVELS.PROFISSIONAL_EDUCACAO,
+    LEVELS.PROFISSIONAL_SAUDE,
+  )
   @Get(':email')
   async findOne(@Param('email') email: string) {
     const user = await this.usersService.findOnePublic(email);
