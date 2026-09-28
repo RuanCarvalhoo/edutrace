@@ -7,6 +7,7 @@ import { ADMIN } from "@/consts";
 import { useAuth } from "@/contexts/AuthContext";
 import { StudentData } from "@/interfaces/StudentData";
 import { exportStudentReportXlsx } from "@/lib/exportStudentReport";
+import { rotaDoEstudante } from "@/utils/estudanteDaUrl";
 import { listarUsuariosDaTabela } from "@/utils/tabelaUsuarios";
 import { Eye, FileDown, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -27,14 +28,7 @@ export default function TabelaEstudantes() {
   );
 
   const handleVerEstudante = (estudante: StudentData) => {
-    const nome = estudante.full_name;
-    const cpf = estudante.cpf;
-    const email = estudante.email;
-    const responsavel = estudante.pedagogical_manager;
-    const id = estudante.id;
-    const id_level = estudante.id_level
-
-    router.push(`/estudantes/visualizar?id=${id}&nome=${nome}&cpf=${cpf}&email=${email}&responsavel=${responsavel}&nivelAcesso=${id_level}`);
+    router.push(rotaDoEstudante('/estudantes/visualizar', estudante.id));
   };
 
   const handleExportar = async (email: string) => {
