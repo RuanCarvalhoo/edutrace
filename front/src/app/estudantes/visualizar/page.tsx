@@ -2,10 +2,12 @@
 
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import AppLayout from "@/components/AppLayout";
 import Loading from "@/components/Loading";
 import { Suspense } from "react";
+import { useEstudanteDaUrl } from "@/hooks/useEstudanteDaUrl";
+import { rotaDoEstudante } from "@/utils/estudanteDaUrl";
 
 function Card({ label, url }: { label: string, url: string }) {
   const router = useRouter();
@@ -29,27 +31,30 @@ export default function VisualizarPageWrapper() {
 }
 
 function VisualizarEstudante() {
-  const searchParams = useSearchParams();
-  const nome = searchParams.get("nome");
-  const cpf = searchParams.get("cpf");
-  const email = searchParams.get("email");
-  const responsavel = searchParams.get("responsavel");
-  const id = searchParams.get("id");
-  const nivelAcesso = searchParams.get("nivelAcesso")
+  const { id, registro, carregando } = useEstudanteDaUrl();
+  const nome = registro?.full_name;
+  const cpf = registro?.cpf;
+  const email = registro?.email;
+  const responsavel = registro?.pedagogical_manager;
+  const nivelAcesso = registro?.id_level;
 
-  function getLevelName(id_level: string | null) {
+  function getLevelName(id_level?: number) {
     switch(id_level) {
-      case '1':
+      case 1:
         return "Admin";
-      case '2':
+      case 2:
         return "Estudante/Família";
-      case '3':
+      case 3:
         return "Profissional da Educação";
-      case '4':
+      case 4:
         return "Profissional da Saúde";
       default:
         return "Nível desconhecido";
     }
+  }
+
+  if (carregando) {
+    return <Loading />;
   }
 
   return (
@@ -60,7 +65,7 @@ function VisualizarEstudante() {
             <p><span className="font-semibold">Nome:</span> {nome}</p>
             <p><span className="font-semibold">CPF:</span> {cpf}</p>
             <p className="break-all"><span className="font-semibold">E-mail:</span> {email}</p>
-            <p><span className="font-semibold">Responsável Pedagógico:</span> {responsavel === "null" ? "Responsável não atribuído" : responsavel }</p>
+            <p><span className="font-semibold">Responsável Pedagógico:</span> {responsavel || "Responsável não atribuído"}</p>
             <p><span className="font-semibold">Nível de Acesso:</span> {getLevelName(nivelAcesso)}</p>
           </div>
 
@@ -80,7 +85,7 @@ function VisualizarEstudante() {
                   <td className="p-3">{nome}</td>
                   <td className="p-3">{cpf}</td>
                   <td className="p-3">{email}</td>
-                  <td className="p-3">{responsavel === "null" ? "Responsável não atribuído" : responsavel }</td>
+                  <td className="p-3">{responsavel || "Responsável não atribuído"}</td>
                   <td className="p-3">{getLevelName(nivelAcesso)}</td>
                 </tr>
               </tbody>
@@ -89,10 +94,10 @@ function VisualizarEstudante() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-10 max-w-5xl mx-auto">
-          <Card label="Triagem" url={`/triagem?email=${email}&nome=${nome}`} />
-          <Card label="Anamnese" url={`/anamnese?email=${email}&nome=${nome}`} />
-          <Card label="Anotações Multiprofissionais" url={`/comentarios?id=${id}&email=${email}&nome=${nome}`}/>
-          <Card label="PEI" url={`/pei?email=${email}&nome=${nome}`} />
+          <Card label="Triagem" url={rotaDoEstudante('/triagem', id)} />
+          <Card label="Anamnese" url={rotaDoEstudante('/anamnese', id)} />
+          <Card label="Anotações Multiprofissionais" url={rotaDoEstudante('/comentarios', id)}/>
+          <Card label="PEI" url={rotaDoEstudante('/pei', id)} />
         </div>
       </div>
     </AppLayout>
