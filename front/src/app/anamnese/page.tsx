@@ -11,7 +11,9 @@ import { AnamnesisData } from "@/interfaces/AnamnesisData";
 import { decodeToken } from "@/services/auth/decodeToken";
 import { useAuth } from "@/contexts/AuthContext";
 import { ESTUDANTE, PROFISSIONAL_EDUCACAO } from "@/consts";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useEstudanteDaUrl } from "@/hooks/useEstudanteDaUrl";
+import { rotaDoEstudante } from "@/utils/estudanteDaUrl";
 
 const BrInput = dynamic(() =>
   import("@govbr-ds-testing/webcomponents-react").then((mod) => mod.BrInput), { ssr: false }
@@ -43,9 +45,7 @@ export default function AnamnesePageWrapper() {
 }
 
 function AnamnesePage() {
-  const searchParams = useSearchParams();
-  const email = searchParams.get("email");
-  const nome = searchParams.get("nome");
+  const { id, email, carregando } = useEstudanteDaUrl();
 
   const { loading } = useAuth();
   const router = useRouter();
@@ -134,7 +134,7 @@ function AnamnesePage() {
       const anamneseParaEnviar = { ...formData, email };
       await postAnamneses(anamneseParaEnviar);
       alert("Anamnese criada com sucesso!");
-      router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`);
+      router.push(rotaDoEstudante('/estudantes/visualizar', id));
     } catch (error) {
       console.error("Erro ao criar anamnese:", error);
       alert("Falha ao criar a anamnese. Verifique o console para mais detalhes.");
@@ -155,14 +155,14 @@ function AnamnesePage() {
     try {
       await deleteAnamnesis(email);
       alert("Anamnese deletada com sucesso!");
-      router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`);
+      router.push(rotaDoEstudante('/estudantes/visualizar', id));
     } catch (error) {
       console.error("Erro ao deletar Anamnese: ", error);
       alert("Falha ao deletar Anamnese. Verifique o console para mais detalhes.");
     }
   };
 
-  if (isLoading || loading) {
+  if (isLoading || loading || carregando) {
       return <Loading />;
   }
 
@@ -461,7 +461,7 @@ function AnamnesePage() {
 
             {/* Botões */}
             <div className="flex justify-center gap-4 mt-8">
-              <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`)}>
+              <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/estudantes/visualizar', id))}>
                 Cancelar
               </button>
               <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={handleSubmit}>
@@ -778,10 +778,10 @@ function AnamnesePage() {
 
           {/* Botões */}
           <div className="flex justify-center gap-4 mt-8">
-            <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`)}>
+            <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/estudantes/visualizar', id))}>
               Voltar
             </button>
-            <button className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/editar-anamnese?email=${email}&nome=${nome}`)}>
+            <button className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/editar-anamnese', id))}>
               Editar Anamnese
             </button>
             <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={handleDelete}>
@@ -1108,7 +1108,7 @@ function AnamnesePage() {
 
         {/* Botões */}
         <div className="flex justify-center gap-4 mt-8">
-          <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(email ? `/estudantes/visualizar?email=${email}&nome=${nome}` : '/home')}>
+          <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(id ? rotaDoEstudante('/estudantes/visualizar', id) : '/home')}>
             Voltar
           </button>
         </div>

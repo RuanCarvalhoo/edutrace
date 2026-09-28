@@ -12,7 +12,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { decodeToken } from "@/services/auth/decodeToken";
 import { getPEIByEmail, patchPEI } from "@/api/plans-education";
 import { ESTUDANTE, PROFISSIONAL_SAUDE } from "@/consts";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useEstudanteDaUrl } from "@/hooks/useEstudanteDaUrl";
+import { rotaDoEstudante } from "@/utils/estudanteDaUrl";
 
 const BrInput = dynamic(() =>
   import("@govbr-ds-testing/webcomponents-react").then((mod) => mod.BrInput), { ssr: false }
@@ -52,9 +54,7 @@ export default function PEIPageWrapper() {
 }
 
 function PEIPage() {
-  const searchParams = useSearchParams();
-  const email = searchParams.get("email");
-  const nome = searchParams.get("nome");
+  const { id, email, carregando } = useEstudanteDaUrl();
 
   const [pei, setPei] = useState<PlansEducationData | null>(null);
   const { loading } = useAuth();
@@ -77,7 +77,7 @@ function PEIPage() {
         const isStudent = token.id_level === ESTUDANTE;
 
         if (token.id_level === PROFISSIONAL_SAUDE || isStudent) {
-          router.push(`/pei${email ? `?email=${email}&nome=${nome}` : ''}`);
+          router.push(rotaDoEstudante('/pei', id));
           return;
         }
 
@@ -95,7 +95,7 @@ function PEIPage() {
       }
     }
     fetchData();
-  }, [email, nome, router]);
+  }, [email, id, router]);
 
 
   const handleInputChange = (name: string, value: string) => {
@@ -137,14 +137,14 @@ function PEIPage() {
           const dadosAtualizados = { ...formData };
           await patchPEI(dadosAtualizados, email);
           alert("PEI atualizado com sucesso!");
-          router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`);
+          router.push(rotaDoEstudante('/estudantes/visualizar', id));
       } catch (error) {
           console.error("Erro ao atualizar PEI: ", error);
           alert("Falha ao atualizar PEI. Verifique o console para mais detalhes.");
       }
       };
 
-  if (loading || isLoading) {
+  if (loading || isLoading || carregando) {
     return <Loading />;
   }
 
@@ -154,7 +154,7 @@ function PEIPage() {
         >
           <div className="p-6 text-center">
                 <h2 className="text-xl font-bold text-green-700">O estudante ainda não possui um PEI cadastrado</h2>
-                <button className="mt-6 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`)}>
+                <button className="mt-6 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/estudantes/visualizar', id))}>
                   Voltar
                 </button>
         </div>
@@ -367,7 +367,7 @@ function PEIPage() {
           </section>
 
           <div className="flex justify-center gap-4 mt-8">
-            <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/pei?email=${email}&nome=${nome}`)}>
+            <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/pei', id))}>
               Cancelar
             </button>
             <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={handleEdit}>

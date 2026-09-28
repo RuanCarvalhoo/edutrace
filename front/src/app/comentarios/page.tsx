@@ -8,7 +8,6 @@ import {
   postComment,
   updateComment,
 } from '@/api/comments';
-import { getStudentByEmail } from '@/api/students';
 import { useAuth } from '@/contexts/AuthContext';
 import { CommentData } from '@/interfaces/CommentData';
 import { TokenPayload, decodeToken } from '@/services/auth/decodeToken';
@@ -25,7 +24,8 @@ import {
 import { ESTUDANTE } from '@/consts';
 import { ChevronDown, History, Pencil, Search, SlidersHorizontal } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useEstudanteDaUrl } from '@/hooks/useEstudanteDaUrl';
 
 const LIMITE_CARACTERES = 1000;
 const LIMITE_EDICOES = 10;
@@ -50,10 +50,7 @@ export default function AnotacoesMultiprofissionaisPageWrapper() {
 }
 
 function AnotacoesMultiprofissionais() {
-  const searchParams = useSearchParams();
-  const id = searchParams.get("id");
-  const email = searchParams.get("email");
-  const nomeParam = searchParams.get("nome");
+  const { registro, nome: nomeEstudante, carregando } = useEstudanteDaUrl();
   const router = useRouter();
 
   const [anotacoes, setAnotacoes] = useState<CommentData[]>([]);
@@ -65,8 +62,6 @@ function AnotacoesMultiprofissionais() {
   const [avisarEdicaoPorEmail, setAvisarEdicaoPorEmail] = useState(false);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   const [historicosAbertos, setHistoricosAbertos] = useState<number[]>([]);
-  const [targetId, setTargetId] = useState<number | null>(null);
-  const [nomeEstudante, setNomeEstudante] = useState<string | null>(nomeParam);
   const [filtros, setFiltros] = useState<CommentFilters>(FILTROS_VAZIOS);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const { user, loading } = useAuth();
@@ -79,50 +74,9 @@ function AnotacoesMultiprofissionais() {
     }
   }, [token, router]);
 
-  // Resolve o estudante alvo da anotação. O estudante vê as próprias anotações
-  // (token.sub); o profissional usa o id da URL quando ele é válido e, caso
-  // contrário, resolve o id pelo e-mail — que chega em todos os fluxos que
-  // passam pela página do estudante, ao contrário do id. O e-mail também
-  // resolve o nome usado no placeholder quando ele não vem na URL.
-  useEffect(() => {
-    if (!token) return;
-
-    let cancelled = false;
-
-    (async () => {
-      if (isStudent) {
-        setTargetId(token.sub);
-        return;
-      }
-
-      const parsedId = Number(id);
-      const idValido = Number.isInteger(parsedId) && parsedId > 0;
-
-      if (idValido) {
-        setTargetId(parsedId);
-        if (nomeParam) return;
-      }
-
-      if (email) {
-        try {
-          const student = await getStudentByEmail(email);
-          if (cancelled) return;
-          if (!idValido) setTargetId(student?.id ?? null);
-          if (!nomeParam) setNomeEstudante(student?.full_name ?? null);
-        } catch (err) {
-          console.error("Erro ao identificar o estudante:", err);
-          if (!cancelled && !idValido) setTargetId(null);
-        }
-        return;
-      }
-
-      if (!idValido) setTargetId(null);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [token, isStudent, id, email, nomeParam]);
+  // O estudante vê as próprias anotações (token.sub); o profissional, as do
+  // estudante indicado pelo id da URL.
+  const targetId = isStudent ? token?.sub ?? null : registro?.id ?? null;
 
   useEffect(() => {
     if (!targetId) return;
@@ -250,7 +204,7 @@ function AnotacoesMultiprofissionais() {
     );
   };
 
-  if (loading) return <Loading />;
+  if (loading || carregando) return <Loading />;
 
   return (
     <AppLayout

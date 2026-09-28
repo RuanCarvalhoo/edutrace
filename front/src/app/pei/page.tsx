@@ -12,7 +12,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { decodeToken } from "@/services/auth/decodeToken";
 import { getPEIByEmail, postPEI, deletePEI } from "@/api/plans-education";
 import { ESTUDANTE, PROFISSIONAL_SAUDE } from "@/consts";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useEstudanteDaUrl } from "@/hooks/useEstudanteDaUrl";
+import { rotaDoEstudante } from "@/utils/estudanteDaUrl";
 
 const BrInput = dynamic(() =>
   import("@govbr-ds-testing/webcomponents-react").then((mod) => mod.BrInput), { ssr: false }
@@ -52,9 +54,7 @@ export default function PEIPageWrapper() {
 }
 
 function PEIPage() {
-  const searchParams = useSearchParams();
-  const email = searchParams.get("email");
-  const nome = searchParams.get("nome");
+  const { id, email, nome, carregando } = useEstudanteDaUrl();
 
   const [pei, setPei] = useState<PlansEducationData | null>(null);
   const { user, loading } = useAuth();
@@ -137,7 +137,7 @@ function PEIPage() {
       };
       await postPEI(peiParaEnviar);
       alert("PEI criado com sucesso!");
-      router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`);
+      router.push(rotaDoEstudante('/estudantes/visualizar', id));
     } catch (error) {
       console.error("Erro ao criar PEI:", error);
       alert(`Falha ao criar o PEI. ${error}. Verifique suas permissões de acesso.`);
@@ -158,14 +158,14 @@ function PEIPage() {
     try {
       await deletePEI(email);
       alert("PEI deletado com sucesso!");
-      router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`);
+      router.push(rotaDoEstudante('/estudantes/visualizar', id));
     } catch (error) {
       console.error("Erro ao deletar PEI: ", error);
       alert("Falha ao deletar PEI. Verifique o console para mais detalhes.");
     }
   };
 
-  if (loading || isLoading) {
+  if (loading || isLoading || carregando) {
     return <Loading />;
   }
 
@@ -375,7 +375,7 @@ function PEIPage() {
           </section>
 
           <div className="flex justify-center gap-4 mt-8">
-            <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`)}>
+            <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/estudantes/visualizar', id))}>
               Cancelar
             </button>
             <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={handleSubmit}>
@@ -553,10 +553,10 @@ function PEIPage() {
             </section>
 
             <div className="flex justify-center gap-4 mt-8">
-              <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`)}>
+              <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/estudantes/visualizar', id))}>
                 Voltar
               </button>
-              <button className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/editar-pei?email=${email}&nome=${nome}`)}>
+              <button className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/editar-pei', id))}>
                 Editar PEI
               </button>
               <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={handleDelete}>
@@ -745,7 +745,7 @@ function PEIPage() {
         </section>
 
         <div className="flex justify-center gap-4 mt-8">
-          <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(email ? `/estudantes/visualizar?email=${email}&nome=${nome}` : '/home')}>
+          <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(id ? rotaDoEstudante('/estudantes/visualizar', id) : '/home')}>
             Voltar
           </button>
         </div>

@@ -11,7 +11,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ESTUDANTE, PROFISSIONAL_EDUCACAO } from "@/consts";
 import { ScreeningData } from "@/interfaces/ScreeningData";
 import { getScreeningByEmail, postScreening, deleteScreening } from "@/api/screenings"; // Importe o postScreening
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useEstudanteDaUrl } from "@/hooks/useEstudanteDaUrl";
+import { rotaDoEstudante } from "@/utils/estudanteDaUrl";
 
 const BrInput = dynamic(() =>
   import("@govbr-ds-testing/webcomponents-react").then((mod) => mod.BrInput), { ssr: false }
@@ -70,9 +72,7 @@ export default function TriagemPageWrapper() {
 }
 
 function TriagemPage() {
-  const searchParams = useSearchParams();
-  const email = searchParams.get("email");
-  const nome = searchParams.get("nome");
+  const { id, email, nome, carregando } = useEstudanteDaUrl();
 
   const { loading } = useAuth();
   const router = useRouter();
@@ -155,11 +155,11 @@ function TriagemPage() {
       const screeningParaEnviar: ScreeningData = {
         ...formData,
         email: email,
-        full_name: nome || 'Nome não encontrado', // Usa o nome dos searchParams
+        full_name: nome || 'Nome não encontrado', // Nome do estudante resolvido pelo id da URL
       };
       await postScreening(screeningParaEnviar);
       alert("Triagem criada com sucesso!");
-      router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`);
+      router.push(rotaDoEstudante('/estudantes/visualizar', id));
     } catch (error) {
       console.error("Erro ao criar triagem:", error);
       alert("Falha ao criar a triagem. Verifique o console para mais detalhes.");
@@ -180,7 +180,7 @@ function TriagemPage() {
     try {
       await deleteScreening(email);
       alert("Triagem deletada com sucesso!");
-      router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`);
+      router.push(rotaDoEstudante('/estudantes/visualizar', id));
     } catch (error) {
       console.error("Erro ao deletar triagem: ", error);
       alert("Falha ao deletar triagem. Verifique o console para mais detalhes.");
@@ -188,7 +188,7 @@ function TriagemPage() {
   };
 
 
-  if (loading || isLoading) {
+  if (loading || isLoading || carregando) {
     return <Loading />;
   }
 
@@ -264,7 +264,7 @@ function TriagemPage() {
           </section>
 
           <div className="flex justify-center gap-4 mt-8">
-            <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`)}>
+            <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/estudantes/visualizar', id))}>
               Cancelar
             </button>
             <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={handleSubmit}>
@@ -345,10 +345,10 @@ function TriagemPage() {
           </section>
 
           <div className="flex justify-center gap-4 mt-8">
-            <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/estudantes/visualizar?email=${email}&nome=${nome}`)}>
+            <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/estudantes/visualizar', id))}>
               Voltar
             </button>
-            <button className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(`/editar-triagem?email=${email}&nome=${nome}`)}>
+            <button className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(rotaDoEstudante('/editar-triagem', id))}>
               Editar Triagem
             </button>
             <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={handleDelete}>
@@ -440,7 +440,7 @@ function TriagemPage() {
         </section>
 
         <div className="flex justify-center gap-4 mt-8">
-          <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(email ? `/estudantes/visualizar?email=${email}&nome=${nome}` : '/home')}>
+          <button className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full" onClick={() => router.push(id ? rotaDoEstudante('/estudantes/visualizar', id) : '/home')}>
             Voltar
           </button>
         </div>
