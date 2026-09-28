@@ -8,7 +8,7 @@ import {
   postComment,
   updateComment,
 } from '@/api/comments';
-import { getUserByEmail } from '@/api/user';
+import { getStudentByEmail } from '@/api/students';
 import { useAuth } from '@/contexts/AuthContext';
 import { CommentData } from '@/interfaces/CommentData';
 import { TokenPayload, decodeToken } from '@/services/auth/decodeToken';
@@ -105,7 +105,7 @@ function AnotacoesMultiprofissionais() {
 
       if (email) {
         try {
-          const student = await getUserByEmail(email);
+          const student = await getStudentByEmail(email);
           if (cancelled) return;
           if (!idValido) setTargetId(student?.id ?? null);
           if (!nomeParam) setNomeEstudante(student?.full_name ?? null);
