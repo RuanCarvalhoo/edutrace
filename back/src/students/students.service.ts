@@ -15,4 +15,14 @@ export class StudentsService {
       select: PUBLIC_USER_SELECT,
     });
   }
+
+  findOne(email: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        email,
+        id_level: LEVELS.ALUNO_ESTUDANTE,
+      },
+      select: PUBLIC_USER_SELECT,
+    });
+  }
 }

@@ -1,8 +1,8 @@
 import { apiRequest } from "@/services/http";
 import { setTokenCookie } from "@/services/auth/tokenCookie";
 
-export async function getUserByEmail(email: string) {
-  return apiRequest(`/users/${email}`);
+export async function getAllUsers() {
+  return apiRequest('/users');
 }
 
 // vai dar certo 2

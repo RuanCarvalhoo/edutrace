@@ -2,12 +2,12 @@
 
 "use client";
 
-import { getAllStudents } from "@/api/students";
 import { updateUser } from "@/api/user";
 import { ADMIN } from "@/consts";
 import { useAuth } from "@/contexts/AuthContext";
 import { StudentData } from "@/interfaces/StudentData";
 import { exportStudentReportXlsx } from "@/lib/exportStudentReport";
+import { listarUsuariosDaTabela } from "@/utils/tabelaUsuarios";
 import { Eye, FileDown, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -104,14 +104,14 @@ export default function TabelaEstudantes() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const data = await getAllStudents();
+        const data = await listarUsuariosDaTabela(user?.id_level);
         setStudents(data);
       } catch (error) {
         console.error("Erro ao buscar estudantes", error);
       }
     }
     fetchData();
-  }, []);
+  }, [user?.id_level]);
 
   function getLevelName(id_level: number) {
     switch(id_level) {

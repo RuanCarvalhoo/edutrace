@@ -146,6 +146,22 @@ describe('UsersController', () => {
     });
   });
 
+  describe('access levels', () => {
+    it.each(['findAll', 'findOne'] as const)(
+      'should restrict %s to the administrator',
+      (route) => {
+        const levels = Reflect.getMetadata('levels', controller[route]);
+
+        expect(levels).toEqual([
+          LEVELS.ALUNO_ESTUDANTE,
+          LEVELS.PROFISSIONAL_EDUCACAO,
+          LEVELS.PROFISSIONAL_SAUDE,
+        ]);
+        expect(levels).not.toContain(LEVELS.ADMIN);
+      },
+    );
+  });
+
   describe('update', () => {
     it('should update a user and return it with masked cpf', async () => {
       const updateDto = { full_name: 'Updated' };

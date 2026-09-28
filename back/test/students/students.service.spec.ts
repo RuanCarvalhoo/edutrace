@@ -17,6 +17,7 @@ describe('StudentsService', () => {
           useValue: {
             user: {
               findMany: jest.fn(),
+              findFirst: jest.fn(),
             },
           },
         },
@@ -96,6 +97,36 @@ describe('StudentsService', () => {
         select: PUBLIC_USER_SELECT,
       });
       expect(result).toEqual(studentsList);
+    });
+  });
+
+  describe('findOne', () => {
+    it('should search the email only among students, without sensitive fields', async () => {
+      const student = {
+        id: 1,
+        full_name: 'Luizin',
+        cpf: '12345678910',
+        email: 'luizin@hotmail.com',
+        id_level: LEVELS.ALUNO_ESTUDANTE,
+      };
+      jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(student as never);
+
+      const result = await service.findOne('luizin@hotmail.com');
+
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: {
+          email: 'luizin@hotmail.com',
+          id_level: LEVELS.ALUNO_ESTUDANTE,
+        },
+        select: PUBLIC_USER_SELECT,
+      });
+      expect(result).toEqual(student);
+    });
+
+    it('should return null for the email of an administrator or a professional', async () => {
+      jest.spyOn(prisma.user, 'findFirst').mockResolvedValue(null);
+
+      await expect(service.findOne('admin@edutrace.com')).resolves.toBeNull();
     });
   });
 });

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StudentsController } from 'src/students/students.controller';
 import { StudentsService } from 'src/students/students.service';
+import { LEVELS } from 'src/constants';
 
 describe('PlansEducationController', () => {
   let controller: StudentsController;
@@ -75,5 +76,41 @@ describe('PlansEducationController', () => {
       expect(await controller.findAll()).toEqual(masked);
       expect(service.findAll).toHaveBeenCalled();
     });
+  });
+
+  describe('findOne', () => {
+    it('should return the student with masked cpf', async () => {
+      const student = {
+        id: 1,
+        full_name: 'Luizin',
+        cpf: '12345678910',
+        email: 'luizin@hotmail.com',
+        id_level: 2,
+      };
+      jest.spyOn(service, 'findOne').mockResolvedValue(student as never);
+
+      expect(await controller.findOne('luizin@hotmail.com')).toEqual({
+        ...student,
+        cpf: '***.456.789-**',
+      });
+      expect(service.findOne).toHaveBeenCalledWith('luizin@hotmail.com');
+    });
+
+    it('should return null when the email is not a student', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue(null);
+
+      expect(await controller.findOne('admin@edutrace.com')).toBeNull();
+    });
+  });
+
+  describe('access levels', () => {
+    it.each(['findAll', 'findOne'] as const)(
+      'should block only students from %s',
+      (route) => {
+        const levels = Reflect.getMetadata('levels', controller[route]);
+
+        expect(levels).toEqual([LEVELS.ALUNO_ESTUDANTE]);
+      },
+    );
   });
 });
