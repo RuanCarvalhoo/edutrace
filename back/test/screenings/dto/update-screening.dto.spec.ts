@@ -40,6 +40,16 @@ describe('UpdateScreeningDto', () => {
     ).resolves.toEqual({ special_service: false });
   });
 
+  it('should drop the email that links the screening to its student', async () => {
+    await expect(
+      validate({
+        full_name: 'Estudante A',
+        special_service: false,
+        email: 'outro.estudante@example.com',
+      }),
+    ).resolves.toEqual({ full_name: 'Estudante A', special_service: false });
+  });
+
   it('should reject physical_disability sent as text', async () => {
     expect(
       await messages({ physical_disability: 'texto no lugar do objeto' }),
