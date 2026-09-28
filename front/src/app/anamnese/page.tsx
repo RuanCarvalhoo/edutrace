@@ -8,7 +8,6 @@ import Loading from "@/components/Loading";
 import { Suspense, useEffect, useState } from "react";
 import { getAnamneseByEmail, postAnamneses, deleteAnamnesis } from "@/api/anamnesis"; 
 import { AnamnesisData } from "@/interfaces/AnamnesisData";
-import { decodeToken } from "@/services/auth/decodeToken";
 import { useAuth } from "@/contexts/AuthContext";
 import { ESTUDANTE, PROFISSIONAL_EDUCACAO } from "@/consts";
 import { useRouter } from "next/navigation";
@@ -47,7 +46,7 @@ export default function AnamnesePageWrapper() {
 function AnamnesePage() {
   const { id, email, carregando } = useEstudanteDaUrl();
 
-  const { loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   const [anamnesis, setAnamnesis] = useState<AnamnesisData | null>(null);
@@ -57,10 +56,12 @@ function AnamnesePage() {
   const [formData, setFormData] = useState<AnamnesisData>(initialAnamnesisState);
   
   useEffect(() => {
+    if (loading) return;
+
     async function fetchData() {
       setIsLoading(true);
       try {
-        const token = decodeToken();
+        const token = user;
         if (!token) {
           router.push('/login'); 
           return;
@@ -85,7 +86,7 @@ function AnamnesePage() {
     }
 
     fetchData();
-  }, [email, router]);
+  }, [email, router, user, loading]);
 
 
   const handleInputChange = (name: string, value: string) => {
