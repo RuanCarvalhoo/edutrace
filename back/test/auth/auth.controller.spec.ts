@@ -18,6 +18,8 @@ describe('AuthController', () => {
           provide: AuthService,
           useValue: {
             signIn: jest.fn(),
+            signInWithGoogle: jest.fn(),
+            updateProfile: jest.fn(),
             logout: jest.fn(),
             forgotPassword: jest.fn(),
             verifyResetCode: jest.fn(),
@@ -44,20 +46,37 @@ describe('AuthController', () => {
     user: { email: 'user@test.com', jti: 'sessao-1' },
   };
 
+  const opcoesDoCookie = {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+    path: '/',
+  };
+
+  function criarRespostaFalsa() {
+    return { cookie: jest.fn(), clearCookie: jest.fn() } as any;
+  }
+
   describe('signIn', () => {
-    it('should return an access token on valid credentials', async () => {
+    it('should put the token in the session cookie and not in the body', async () => {
       const authDto = { email: 'user@test.com', password: 'password123' };
-      const token = { access_token: 'mock.jwt.token' };
+      const resposta = criarRespostaFalsa();
 
-      jest.spyOn(service, 'signIn').mockResolvedValue(token);
+      jest.spyOn(service, 'signIn').mockResolvedValue({ access_token: 'mock.jwt.token' });
 
-      const result = await controller.signIn(authDto, requestFalso);
+      const result = await controller.signIn(authDto, requestFalso, resposta);
 
       expect(service.signIn).toHaveBeenCalledWith(authDto.email, authDto.password, {
         ip: requestFalso.ip,
         userAgent: requestFalso.headers['user-agent'],
       });
-      expect(result).toEqual(token);
+      expect(resposta.cookie).toHaveBeenCalledWith(
+        'edutrace_session',
+        'mock.jwt.token',
+        opcoesDoCookie,
+      );
+      expect(result).toEqual({ message: 'Sessão iniciada.' });
+      expect(JSON.stringify(result)).not.toContain('mock.jwt.token');
     });
 
     it('should throw UnauthorizedException when user is not found', async () => {
@@ -67,7 +86,9 @@ describe('AuthController', () => {
         .spyOn(service, 'signIn')
         .mockRejectedValue(new UnauthorizedException('E-mail ou senha inválidos.'));
 
-      await expect(controller.signIn(authDto, requestFalso)).rejects.toThrow(UnauthorizedException);
+      const resposta = criarRespostaFalsa();
+      await expect(controller.signIn(authDto, requestFalso, resposta)).rejects.toThrow(UnauthorizedException);
+      expect(resposta.cookie).not.toHaveBeenCalled();
       expect(service.signIn).toHaveBeenCalledWith(authDto.email, authDto.password, {
         ip: requestFalso.ip,
         userAgent: requestFalso.headers['user-agent'],
@@ -81,11 +102,92 @@ describe('AuthController', () => {
         .spyOn(service, 'signIn')
         .mockRejectedValue(new UnauthorizedException('E-mail ou senha inválidos.'));
 
-      await expect(controller.signIn(authDto, requestFalso)).rejects.toThrow(UnauthorizedException);
+      const resposta = criarRespostaFalsa();
+      await expect(controller.signIn(authDto, requestFalso, resposta)).rejects.toThrow(UnauthorizedException);
+      expect(resposta.cookie).not.toHaveBeenCalled();
       expect(service.signIn).toHaveBeenCalledWith(authDto.email, authDto.password, {
         ip: requestFalso.ip,
         userAgent: requestFalso.headers['user-agent'],
       });
+    });
+  });
+
+  describe('signInWithGoogle', () => {
+    it('should put the token in the session cookie and not in the body', async () => {
+      const resposta = criarRespostaFalsa();
+      jest
+        .spyOn(service, 'signInWithGoogle')
+        .mockResolvedValue({ access_token: 'google.jwt.token' });
+
+      const result = await controller.signInWithGoogle(
+        { credential: 'credencial-google' },
+        requestFalso,
+        resposta,
+      );
+
+      expect(service.signInWithGoogle).toHaveBeenCalledWith('credencial-google', {
+        ip: requestFalso.ip,
+        userAgent: requestFalso.headers['user-agent'],
+      });
+      expect(resposta.cookie).toHaveBeenCalledWith(
+        'edutrace_session',
+        'google.jwt.token',
+        opcoesDoCookie,
+      );
+      expect(result).toEqual({ message: 'Sessão iniciada.' });
+    });
+  });
+
+  describe('updateMe', () => {
+    it('should replace the session cookie with the token issued after the update', async () => {
+      const resposta = criarRespostaFalsa();
+      const dto = { currentPassword: 'senhaAtual123', password: 'novaSenha123' };
+      jest
+        .spyOn(service, 'updateProfile')
+        .mockResolvedValue({ access_token: 'novo.jwt.token' });
+
+      const result = await controller.updateMe(requestFalso, dto, resposta);
+
+      expect(service.updateProfile).toHaveBeenCalledWith('user@test.com', dto, {
+        ip: requestFalso.ip,
+        userAgent: requestFalso.headers['user-agent'],
+      });
+      expect(resposta.cookie).toHaveBeenCalledWith(
+        'edutrace_session',
+        'novo.jwt.token',
+        opcoesDoCookie,
+      );
+      expect(result).toEqual({ message: 'Dados atualizados.' });
+    });
+
+    it('should keep the current cookie when the update fails', async () => {
+      const resposta = criarRespostaFalsa();
+      jest
+        .spyOn(service, 'updateProfile')
+        .mockRejectedValue(new UnauthorizedException('Senha atual incorreta'));
+
+      await expect(
+        controller.updateMe(requestFalso, { currentPassword: 'errada' }, resposta),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(resposta.cookie).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('logout', () => {
+    it('should revoke the session and clear the session cookie', async () => {
+      const resposta = criarRespostaFalsa();
+      jest
+        .spyOn(service, 'logout')
+        .mockResolvedValue({ message: 'Sessão encerrada com sucesso.' });
+
+      const result = await controller.logout(requestFalso, resposta);
+
+      expect(service.logout).toHaveBeenCalledWith('sessao-1');
+      expect(resposta.clearCookie).toHaveBeenCalledWith(
+        'edutrace_session',
+        opcoesDoCookie,
+      );
+      expect(result).toEqual({ message: 'Sessão encerrada com sucesso.' });
     });
   });
 
