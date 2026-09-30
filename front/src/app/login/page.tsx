@@ -117,23 +117,23 @@ function LoginPage() {
             />
           </section>
 
-          <section className="flex min-h-0 items-start justify-center py-1 sm:items-center sm:py-6 lg:min-h-0 lg:justify-end lg:py-0">
-            <div className="max-h-[calc(100svh-1rem)] w-full max-w-[390px] overflow-y-auto rounded-[18px] border border-[#d8e5f6] bg-white/86 shadow-[0_18px_60px_rgba(33,91,140,0.13)] backdrop-blur-sm sm:max-h-none sm:max-w-[430px] sm:overflow-hidden sm:rounded-[20px]">
+          <section className="flex min-h-0 flex-col items-center justify-center py-2 sm:py-6 lg:min-h-0 lg:items-end lg:py-0">
+            <div className="flex shrink-0 justify-center lg:hidden">
+              <Image
+                src="/login.svg"
+                alt="Edutrace"
+                width={364}
+                height={281}
+                priority
+                className="h-auto w-52 min-[390px]:w-56 sm:w-64"
+              />
+            </div>
+
+            <div className="mt-2 w-full max-w-[390px] overflow-hidden rounded-[18px] border border-[#d8e5f6] bg-white/86 shadow-[0_18px_60px_rgba(33,91,140,0.13)] backdrop-blur-sm sm:mt-3 sm:max-w-[430px] sm:rounded-[20px] lg:mt-0">
               <form
                 onSubmit={handleSubmit}
                 className="flex w-full flex-col px-4 pb-4 pt-4 sm:px-9 sm:pb-8 sm:pt-9"
               >
-                <div className="mb-3 flex justify-center sm:mb-6 lg:hidden">
-                  <Image
-                    src="/login.svg"
-                    alt="Edutrace"
-                    width={364}
-                    height={281}
-                    priority
-                    className="h-auto w-24 min-[390px]:w-28 sm:w-60"
-                  />
-                </div>
-
                 <h1 className="text-[27px] font-extrabold leading-none tracking-normal text-[#061542] sm:text-[44px]">
                   Login
                 </h1>
