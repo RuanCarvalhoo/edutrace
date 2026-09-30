@@ -33,23 +33,5 @@ Acesse a Wiki do Projeto para mais detalhes sobre requisitos, arquitetura e flux
 - As imagens publicadas no GHCR incluem atestação SBOM e proveniência.
 - Cada publicação de release disponibiliza SBOMs CycloneDX do backend e do frontend como artefatos por 90 dias.
 
-## Imagens Docker multi-arquitetura
-
-As imagens oficiais do frontend e do backend são publicadas para
-`linux/amd64` e `linux/arm64`. O Docker seleciona automaticamente a variante
-compatível com o host, incluindo instâncias OCI Ampere A1.
-
-```bash
-docker compose --env-file .env.production -f docker-compose-prod.yml pull
-docker compose --env-file .env.production -f docker-compose-prod.yml up -d
-```
-
-Para conferir as plataformas publicadas:
-
-```bash
-docker buildx imagetools inspect ghcr.io/jardimdesoftware/edutrace-backend:latest
-docker buildx imagetools inspect ghcr.io/jardimdesoftware/edutrace-frontend:latest
-```
-
 ## Weekly
 Acesse nossa weekly no [Canva](https://canva.link/ig3m8fzockzm8yh).
