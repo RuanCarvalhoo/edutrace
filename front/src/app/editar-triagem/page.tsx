@@ -6,7 +6,6 @@ import "@govbr-ds/core/dist/core.min.css";
 import AppLayout from "@/components/AppLayout";
 import Loading from "@/components/Loading";
 import { Suspense, useEffect, useState } from "react";
-import { decodeToken } from "@/services/auth/decodeToken";
 import { useAuth } from "@/contexts/AuthContext";
 import { ESTUDANTE, PROFISSIONAL_EDUCACAO } from "@/consts";
 import { ScreeningData } from "@/interfaces/ScreeningData";
@@ -74,7 +73,7 @@ export default function TriagemPageWrapper() {
 function TriagemPage() {
   const { id, email, nome, carregando } = useEstudanteDaUrl();
 
-  const { loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   const [screening, setScreening] = useState<ScreeningData | null>(null);
@@ -84,10 +83,12 @@ function TriagemPage() {
   const [formData, setFormData] = useState<ScreeningData>(initialScreeningState);
 
   useEffect(() => {
+    if (loading) return;
+
     async function fetchData() {
       setIsLoading(true);
       try {
-        const token = decodeToken();
+        const token = user;
         if (!token) {
           router.push('/login');
           return;
@@ -116,7 +117,7 @@ function TriagemPage() {
     }
 
     fetchData();
-  }, [email, id, router]);
+  }, [email, id, router, user, loading]);
 
   // Manipulador para inputs de texto (BrInput)
   const handleInputChange = (name: string, value: string) => {

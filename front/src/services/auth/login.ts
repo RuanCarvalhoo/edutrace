@@ -1,6 +1,5 @@
-import { RegisterData } from "@/interfaces/RegisterData";
+import type { RegisterData } from "@/interfaces/RegisterData";
 import { apiRequest } from "@/services/http";
-import { setTokenCookie } from "./tokenCookie";
 
 export async function login(email: string, password: string) {
   const data = await apiRequest('/auth/login', {
@@ -9,10 +8,6 @@ export async function login(email: string, password: string) {
     auth: false,
     errorMessage: 'Erro ao fazer login',
   });
-
-  localStorage.setItem('token', data.access_token);
-
-  setTokenCookie(data.access_token);
 
   return data;
 }
@@ -24,10 +19,6 @@ export async function loginWithGoogle(credential: string) {
     auth: false,
     errorMessage: 'Erro ao fazer login com Google',
   });
-
-  localStorage.setItem('token', data.access_token);
-
-  setTokenCookie(data.access_token);
 
   return data;
 }

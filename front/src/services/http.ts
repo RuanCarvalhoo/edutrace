@@ -1,5 +1,5 @@
 import { getApiUrl } from '@/utils/runtimeApiUrl';
-import { endSession, getToken } from './auth/session';
+import { endSession } from './auth/session';
 
 const DEFAULT_ERROR_MESSAGE = 'Erro ao processar requisição';
 
@@ -38,14 +38,17 @@ export async function apiRequest(path: string, options: ApiRequestOptions = {}) 
     errorMessage = DEFAULT_ERROR_MESSAGE,
   } = options;
 
-  const token = auth ? getToken() : null;
   const hasBody = body !== undefined;
 
+  // O token de sessão vai no cookie HttpOnly, que só é enviado à API com
+  // credentials: 'include'. O cabeçalho X-Requested-With é exigido pelo back nas
+  // requisições que alteram estado, como proteção contra CSRF.
   const res = await fetch(`${getApiUrl()}${path}`, {
     method,
+    credentials: 'include',
     headers: {
+      'X-Requested-With': 'XMLHttpRequest',
       ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     ...(hasBody ? { body: JSON.stringify(body) } : {}),
   });

@@ -4,6 +4,8 @@ import { AppModule } from './app.module';
 import { validateSecretKey } from './common/validate-secret-key';
 import { setupSwagger } from './common/setup-swagger';
 import { createValidationPipe } from './common/validation-pipe';
+import { csrfProtection } from './common/csrf-protection';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   validateSecretKey();
@@ -25,6 +27,8 @@ async function bootstrap() {
     origin: isProduction ? origins : true,
     credentials: true,
   });
+  app.use(cookieParser());
+  app.use(csrfProtection);
   app.useGlobalPipes(createValidationPipe());
 
   setupSwagger(app, isProduction);

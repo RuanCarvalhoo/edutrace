@@ -5,7 +5,7 @@ import Image from "next/image";
 import { login, loginWithGoogle } from "@/services/auth/login";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { decodeToken } from "@/services/auth/decodeToken";
+import { fetchSessionUser } from "@/services/auth/sessionUser";
 import Swal from "sweetalert2";
 import Loading from "@/components/Loading";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
@@ -53,8 +53,8 @@ function LoginPage() {
       .catch(() => setRelease({ label: "", url: null }));
   }, []);
 
-  const finishLogin = useCallback(() => {
-    setUser(decodeToken());
+  const finishLogin = useCallback(async () => {
+    setUser(await fetchSessionUser());
     router.push("/home");
   }, [router, setUser]);
 
@@ -73,7 +73,7 @@ function LoginPage() {
 
     try {
       await login(email, password);
-      finishLogin();
+      await finishLogin();
     } catch (error) {
       showLoginError(error);
     }
@@ -82,7 +82,7 @@ function LoginPage() {
   const handleGoogleCredential = useCallback(async (credential: string) => {
     try {
       await loginWithGoogle(credential);
-      finishLogin();
+      await finishLogin();
     } catch (error) {
       showLoginError(error);
     }

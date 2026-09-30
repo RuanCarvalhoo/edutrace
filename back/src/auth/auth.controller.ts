@@ -7,8 +7,10 @@ import {
   Patch,
   Post,
   Request,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { AuthDto } from './dto/auth.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -21,6 +23,10 @@ import { Public } from './constants/constants';
 import { AllowPasswordChange } from './decorators/allow-password-change.decorator';
 import { ApiBody } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import {
+  sessionCookieName,
+  sessionCookieOptions,
+} from 'src/common/session-cookie';
 
 @Controller('auth')
 export class AuthController {
@@ -34,11 +40,21 @@ export class AuthController {
   })
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  async signIn(@Body() auth: AuthDto, @Request() request): Promise<any> {
-    return await this.authService.signIn(auth.email, auth.password, {
-      ip: request.ip,
-      userAgent: request.headers['user-agent'],
-    });
+  async signIn(
+    @Body() auth: AuthDto,
+    @Request() request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{ message: string }> {
+    const { access_token } = await this.authService.signIn(
+      auth.email,
+      auth.password,
+      {
+        ip: request.ip,
+        userAgent: request.headers['user-agent'],
+      },
+    );
+    this.setSessionCookie(response, access_token);
+    return { message: 'Sessão iniciada.' };
   }
 
   @Public()
@@ -55,11 +71,17 @@ export class AuthController {
   async signInWithGoogle(
     @Body() dto: GoogleAuthDto,
     @Request() request,
-  ): Promise<any> {
-    return await this.authService.signInWithGoogle(dto.credential, {
-      ip: request.ip,
-      userAgent: request.headers['user-agent'],
-    });
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{ message: string }> {
+    const { access_token } = await this.authService.signInWithGoogle(
+      dto.credential,
+      {
+        ip: request.ip,
+        userAgent: request.headers['user-agent'],
+      },
+    );
+    this.setSessionCookie(response, access_token);
+    return { message: 'Sessão iniciada.' };
   }
 
   @Public()
@@ -107,7 +129,7 @@ export class AuthController {
   @Get('profile')
   @ApiBody({
     description:
-      'Para obter o perfil do usuário, basta passar o token no header da requisição ex: "Authorization: "Bearer {token}""',
+      'Devolve o perfil do usuário da sessão, identificada pelo cookie de sessão ou pelo header "Authorization: Bearer {token}".',
   })
   getProfile(@Request() req) {
     return req.user;
@@ -117,8 +139,14 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post('logout')
-  async logout(@Request() request): Promise<{ message: string }> {
-    return await this.authService.logout(request.user.jti);
+  async logout(
+    @Request() request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{ message: string }> {
+    const result = await this.authService.logout(request.user.jti);
+    // O front não consegue apagar um cookie HttpOnly, então quem o remove é o back.
+    response.clearCookie(sessionCookieName(), sessionCookieOptions());
+    return result;
   }
 
   // Sem @Levels: qualquer usuário autenticado pode alterar os próprios dados.
@@ -130,10 +158,26 @@ export class AuthController {
     description: 'Altera o e-mail e/ou a senha do próprio usuário autenticado.',
   })
   @Patch('me')
-  async updateMe(@Request() req, @Body() dto: UpdateProfileDto) {
-    return await this.authService.updateProfile(req.user.email, dto, {
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
+  async updateMe(
+    @Request() req,
+    @Body() dto: UpdateProfileDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{ message: string }> {
+    const { access_token } = await this.authService.updateProfile(
+      req.user.email,
+      dto,
+      {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    );
+    this.setSessionCookie(response, access_token);
+    return { message: 'Dados atualizados.' };
+  }
+
+  // O token vai só no cookie HttpOnly, fora do corpo, para nenhum JavaScript
+  // da página conseguir lê-lo.
+  private setSessionCookie(response: Response, accessToken: string) {
+    response.cookie(sessionCookieName(), accessToken, sessionCookieOptions());
   }
 }

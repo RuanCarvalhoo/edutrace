@@ -9,7 +9,6 @@ import { Suspense, useEffect, useState } from "react";
 import { PlansEducationData } from "@/interfaces/PlansEducationData";
 import { useAuth } from "@/contexts/AuthContext";
 
-import { decodeToken } from "@/services/auth/decodeToken";
 import { getPEIByEmail, postPEI, deletePEI } from "@/api/plans-education";
 import { ESTUDANTE, PROFISSIONAL_SAUDE } from "@/consts";
 import { useRouter } from "next/navigation";
@@ -66,10 +65,12 @@ function PEIPage() {
   const [formData, setFormData] = useState<PlansEducationData>(initialPEIState);
 
   useEffect(() => {
+    if (loading) return;
+
     async function fetchData() {
       setIsLoading(true);
       try {
-        const token = decodeToken();
+        const token = user;
         if (!token) {
           router.push('/login');
           return;
@@ -92,7 +93,7 @@ function PEIPage() {
       }
     }
     fetchData();
-  }, [email, router]);
+  }, [email, router, user, loading]);
 
 
   const handleInputChange = (name: string, value: string) => {

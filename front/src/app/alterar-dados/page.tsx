@@ -3,7 +3,7 @@
 import AppLayout from "@/components/AppLayout";
 import { updateProfile } from "@/api/user";
 import { useAuth } from "@/contexts/AuthContext";
-import { decodeToken } from "@/services/auth/decodeToken";
+import { fetchSessionUser } from "@/services/auth/sessionUser";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
@@ -75,9 +75,9 @@ export default function AlterarDadosPage() {
         currentPassword: senhaAtual,
       });
 
-      // O token novo já foi persistido pela API; sincroniza o contexto global
-      // para que Navbar, listagem e chamadas seguintes usem os dados atualizados.
-      setUser(decodeToken());
+      // O back já trocou o cookie de sessão; sincroniza o contexto global para
+      // que Navbar, listagem e chamadas seguintes usem os dados atualizados.
+      setUser(await fetchSessionUser());
 
       setNovaSenha("");
       setConfirmarSenha("");

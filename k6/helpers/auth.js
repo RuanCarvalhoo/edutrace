@@ -1,6 +1,38 @@
 import http from 'k6/http';
 import { check } from 'k6';
 
+// A API devolve o token num cookie HttpOnly, e não mais no corpo do login. O
+// nome leva o prefixo __Host- quando a API roda com NODE_ENV=production.
+const SESSION_COOKIE_NAMES = ['__Host-edutrace_session', 'edutrace_session'];
+
+/**
+ * Lê o token de sessão do cookie definido na resposta do login.
+ *
+ * @param {Object} res - Resposta do k6
+ * @returns {string | null}
+ */
+export function sessionTokenFrom(res) {
+  for (const name of SESSION_COOKIE_NAMES) {
+    const cookies = res.cookies[name];
+    if (cookies && cookies.length > 0 && cookies[0].value) {
+      return cookies[0].value;
+    }
+  }
+  return null;
+}
+
+/**
+ * Descarta o cookie de sessão guardado pelo jar do k6. Os testes autenticam pelo
+ * header Bearer, que a API continua aceitando; com o cookie no jar, as
+ * requisições que alteram estado passariam a exigir o cabeçalho de proteção
+ * contra CSRF, e as verificações de "sem token" deixariam de valer.
+ *
+ * @param {string} baseUrl - URL base da API
+ */
+export function forgetSessionCookie(baseUrl) {
+  http.cookieJar().clear(baseUrl);
+}
+
 /**
  * Helper de autenticação para os testes k6 do EduTrace.
  *
@@ -24,26 +56,18 @@ export function login(baseUrl, email, password) {
   };
 
   const res = http.post(url, payload, params);
+  const token = sessionTokenFrom(res);
+  forgetSessionCookie(baseUrl);
 
   const ok = check(res, {
     '[auth] login retornou 200': (r) => r.status === 200,
-    '[auth] token presente na resposta': (r) => {
-      try {
-        const body = JSON.parse(r.body);
-        return typeof body.access_token === 'string' && body.access_token.length > 0;
-      } catch(e) {
-        return false;
-      }
-    },
+    '[auth] token presente no cookie de sessão': () => typeof token === 'string' && token.length > 0,
   });
 
   if (!ok) {
     console.error(`[auth] Falha no login para ${email}. Status: ${res.status}. Body: ${res.body}`);
     return null;
   }
-
-  const body = JSON.parse(res.body);
-  const token = body.access_token;
 
   return {
     token,

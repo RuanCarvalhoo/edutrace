@@ -13,7 +13,7 @@ type Resultado = { id: string | null; registro: StudentData | null };
 // do estudante na URL e resolve e-mail e nome pela API.
 export function useEstudanteDaUrl() {
   const id = useSearchParams().get("id");
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const isStudent = user?.id_level === ESTUDANTE;
   const precisaBuscar = !!user && !isStudent;
   const nivel = user?.id_level;
@@ -48,6 +48,6 @@ export function useEstudanteDaUrl() {
     email: registro?.email ?? null,
     nome: registro?.full_name ?? null,
     registro,
-    carregando: precisaBuscar && resultado?.id !== id,
+    carregando: loading || (precisaBuscar && resultado?.id !== id),
   };
 }
