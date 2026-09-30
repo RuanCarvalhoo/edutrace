@@ -298,6 +298,7 @@ jobs:
           }
 
           imagem=$(leia "s['image']")
+          imagem_backend=$(python3 -c "import json; s=json.load(open('compose.json'))['services']['nest-app']; print(s['image'])")
           porta=$(leia "s['environment']['PORT']")
           destino=$(leia "s['ports'][0]['target']")
 
@@ -308,6 +309,13 @@ jobs:
           if [ "$imagem" != "$esperada" ]; then
             echo "❌ docker-compose-prod.yml usa a imagem $imagem."
             echo "   O frontend-pipeline publica $esperada."
+            status=1
+          fi
+
+          esperada_backend="ghcr.io/jardimdesoftware/edutrace-backend:latest"
+          if [ "$imagem_backend" != "$esperada_backend" ]; then
+            echo "docker-compose-prod.yml usa a imagem de backend $imagem_backend."
+            echo "O backend-pipeline publica $esperada_backend."
             status=1
           fi
 
