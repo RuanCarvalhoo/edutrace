@@ -1,0 +1,431 @@
+                    
+                    
+┌──────────────────┐
+│ 73 Code Findings │
+└──────────────────┘
+                          
+    .github/dependabot.yml
+    ❯❱ package_managers.dependabot.dependabot-missing-cooldown.dependabot-missing-cooldown
+          ❰❰ Blocking ❱❱
+          This Dependabot configuration does not set a cooldown period. Newly published packages can be     
+          malicious or unstable. Add a `cooldown` block with `default-days: 7` to each `package-ecosystem`  
+          entry under `updates` to wait 7 days before proposing updates to newly published package versions.
+          Reference: https://docs.github.com/en/code-security/dependabot/dependabot-version-                
+          updates/configuration-options-for-the-dependabot.yml-file#cooldown                                
+          Details: https://sg.run/5WvGK                                                                     
+                                                                                                            
+            7┆ - package-ecosystem: "npm"
+            8┆   directory: "/back"
+            9┆   schedule:
+           10┆     interval: "weekly"
+           11┆     day: "monday"
+           12┆     time: "06:00"
+           13┆     timezone: "America/Sao_Paulo"
+           14┆   open-pull-requests-limit: 10
+           15┆   commit-message:
+           16┆     prefix: "chore: "
+             [hid 35 additional lines, adjust with --max-lines-per-finding] 
+           56┆ - package-ecosystem: "npm"
+           57┆   directory: "/front"
+           58┆   schedule:
+           59┆     interval: "weekly"
+           60┆     day: "monday"
+           61┆     time: "06:00"
+           62┆     timezone: "America/Sao_Paulo"
+           63┆   open-pull-requests-limit: 10
+           64┆   commit-message:
+           65┆     prefix: "chore: "
+             [hid 24 additional lines, adjust with --max-lines-per-finding] 
+                                          
+    .github/workflows/backend-pipeline.yml
+    ❯❱ yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+          ❰❰ Blocking ❱❱
+          GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently   
+          repointed by the action owner, enabling supply-chain attacks — as seen in the trivy-action and kics-
+          github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: 
+          actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.                                         
+          Details: https://sg.run/2LgAL                                                                       
+                                                                                                              
+           47┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+          126┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+          129┆ uses: actions/setup-node@v4
+            ⋮┆----------------------------------------
+          215┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+          218┆ uses: docker/setup-qemu-action@v3
+            ⋮┆----------------------------------------
+          221┆ uses: docker/setup-buildx-action@v3
+            ⋮┆----------------------------------------
+          224┆ uses: docker/login-action@v3
+            ⋮┆----------------------------------------
+          231┆ uses: docker/build-push-action@v7
+            ⋮┆----------------------------------------
+          253┆ uses: aquasecurity/trivy-action@master
+            ⋮┆----------------------------------------
+          276┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+          279┆ uses: softprops/action-gh-release@v1
+                                           
+    .github/workflows/frontend-pipeline.yml
+    ❯❱ yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+          ❰❰ Blocking ❱❱
+          GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently   
+          repointed by the action owner, enabling supply-chain attacks — as seen in the trivy-action and kics-
+          github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: 
+          actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.                                         
+          Details: https://sg.run/2LgAL                                                                       
+                                                                                                              
+           45┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+          147┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+          150┆ uses: actions/setup-node@v4
+            ⋮┆----------------------------------------
+          164┆ uses: docker/setup-qemu-action@v3
+            ⋮┆----------------------------------------
+          167┆ uses: docker/setup-buildx-action@v3
+            ⋮┆----------------------------------------
+          170┆ uses: docker/login-action@v3
+            ⋮┆----------------------------------------
+          177┆ uses: docker/build-push-action@v7
+            ⋮┆----------------------------------------
+          200┆ uses: aquasecurity/trivy-action@master
+            ⋮┆----------------------------------------
+          223┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+          226┆ uses: softprops/action-gh-release@v1
+                                   
+    .github/workflows/owasp-zap.yml
+    ❯❱ yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+          ❰❰ Blocking ❱❱
+          GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently   
+          repointed by the action owner, enabling supply-chain attacks — as seen in the trivy-action and kics-
+          github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: 
+          actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.                                         
+          Details: https://sg.run/2LgAL                                                                       
+                                                                                                              
+           26┆ uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+           29┆ uses: zaproxy/action-baseline@v0.15.0
+                                   
+    .github/workflows/pr-checks.yml
+    ❯❱ yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+          ❰❰ Blocking ❱❱
+          GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently   
+          repointed by the action owner, enabling supply-chain attacks — as seen in the trivy-action and kics-
+          github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: 
+          actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.                                         
+          Details: https://sg.run/2LgAL                                                                       
+                                                                                                              
+           29┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+           33┆ uses: dorny/paths-filter@v3
+            ⋮┆----------------------------------------
+           79┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+           82┆ uses: actions/setup-node@v4
+            ⋮┆----------------------------------------
+          145┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+          164┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+          167┆ uses: actions/setup-node@v4
+            ⋮┆----------------------------------------
+          203┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+          262┆ - uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+          345┆ - uses: actions/checkout@v4
+                                        
+    .github/workflows/publish-docker.yml
+    ❯❱ yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+          ❰❰ Blocking ❱❱
+          GitHub Actions step uses a mutable tag or branch reference. Tags and branch names can be silently   
+          repointed by the action owner, enabling supply-chain attacks — as seen in the trivy-action and kics-
+          github-action compromises. Pin the reference to a full 40-character commit SHA instead, e.g. `uses: 
+          actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`.                                         
+          Details: https://sg.run/2LgAL                                                                       
+                                                                                                              
+           31┆ uses: actions/checkout@v4
+            ⋮┆----------------------------------------
+           41┆ uses: docker/login-action@v3
+            ⋮┆----------------------------------------
+           48┆ uses: docker/setup-qemu-action@v3
+            ⋮┆----------------------------------------
+           51┆ uses: docker/setup-buildx-action@v3
+            ⋮┆----------------------------------------
+           54┆ uses: docker/build-push-action@v6
+            ⋮┆----------------------------------------
+           74┆ uses: docker/build-push-action@v6
+            ⋮┆----------------------------------------
+           99┆ uses: aquasecurity/trivy-action@v0.36.0
+            ⋮┆----------------------------------------
+          109┆ uses: aquasecurity/trivy-action@v0.36.0
+            ⋮┆----------------------------------------
+          119┆ uses: actions/upload-artifact@v4
+                   
+    back/Dockerfile
+   ❯❯❱ dockerfile.security.missing-user.missing-user
+          ❰❰ Blocking ❱❱
+          By not specifying a USER, a program in the container may run as 'root'. This is a security hazard.
+          If an attacker can control a process running as root, they may have control over the container.   
+          Ensure that the last USER in a Dockerfile is a USER other than 'root'.                            
+          Details: https://sg.run/Gbvn                                                                      
+                                                                                                            
+           ▶▶┆ Autofix ▶ USER non-root CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npm run
+              seed && npm run start:prod"]                                                                          
+           20┆ CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npm run seed && npm
+               run start:prod"]                                                                         
+                                 
+    back/src/auth/auth.service.ts
+   ❯❯❱ generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash
+          ❰❰ Blocking ❱❱
+          bcrypt hash detected        
+          Details: https://sg.run/3A8G
+                                      
+           31┆ '$2b$10$iMrrGyWs8x9.Ue/VXnHYlORQpzM/P9Hm0ETaQYvUpIc5i0.3SvKt2';
+                                    
+    docker-compose-observability.yml
+    ❯❱ yaml.docker-compose.security.no-new-privileges.no-new-privileges
+          ❰❰ Blocking ❱❱
+          Service 'prometheus' allows for privilege escalation via setuid or setgid binaries. Add 'no-new-
+          privileges:true' in 'security_opt' to prevent this.                                             
+          Details: https://sg.run/0n8q                                                                    
+                                                                                                          
+            5┆ prometheus:
+   
+    ❯❱ yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service
+          ❰❰ Blocking ❱❱
+          Service 'prometheus' is running with a writable root filesystem. This may allow malicious         
+          applications to download and run additional payloads, or modify container files. If an application
+          inside a container has to save something temporarily consider using a tmpfs. Add 'read_only: true'
+          to this service to prevent this.                                                                  
+          Details: https://sg.run/e4JE                                                                      
+                                                                                                            
+            5┆ prometheus:
+   
+    ❯❱ yaml.docker-compose.security.no-new-privileges.no-new-privileges
+          ❰❰ Blocking ❱❱
+          Service 'loki' allows for privilege escalation via setuid or setgid binaries. Add 'no-new-
+          privileges:true' in 'security_opt' to prevent this.                                       
+          Details: https://sg.run/0n8q                                                              
+                                                                                                    
+           17┆ loki:
+   
+    ❯❱ yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service
+          ❰❰ Blocking ❱❱
+          Service 'loki' is running with a writable root filesystem. This may allow malicious applications to
+          download and run additional payloads, or modify container files. If an application inside a        
+          container has to save something temporarily consider using a tmpfs. Add 'read_only: true' to this  
+          service to prevent this.                                                                           
+          Details: https://sg.run/e4JE                                                                       
+                                                                                                             
+           17┆ loki:
+   
+    ❯❱ yaml.docker-compose.security.no-new-privileges.no-new-privileges
+          ❰❰ Blocking ❱❱
+          Service 'promtail' allows for privilege escalation via setuid or setgid binaries. Add 'no-new-
+          privileges:true' in 'security_opt' to prevent this.                                           
+          Details: https://sg.run/0n8q                                                                  
+                                                                                                        
+           28┆ promtail:
+   
+    ❯❱ yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service
+          ❰❰ Blocking ❱❱
+          Service 'promtail' is running with a writable root filesystem. This may allow malicious applications
+          to download and run additional payloads, or modify container files. If an application inside a      
+          container has to save something temporarily consider using a tmpfs. Add 'read_only: true' to this   
+          service to prevent this.                                                                            
+          Details: https://sg.run/e4JE                                                                        
+                                                                                                              
+           28┆ promtail:
+   
+    ❯❱ yaml.docker-compose.security.exposing-docker-socket-volume.exposing-docker-socket-volume
+          ❰❰ Blocking ❱❱
+          Exposing host's Docker socket to containers via a volume. The owner of this socket is root. Giving
+          someone access to it is equivalent to giving unrestricted root access to your host. Remove        
+          'docker.sock' from volumes to prevent this.                                                       
+          Details: https://sg.run/O14b                                                                      
+                                                                                                            
+           31┆ volumes:
+           32┆   - ../prometheus/promtail-config.yml:/etc/promtail/config.yml
+           33┆   - /var/lib/docker/containers:/var/lib/docker/containers:ro
+           34┆   - /var/run/docker.sock:/var/run/docker.sock
+   
+    ❯❱ yaml.docker-compose.security.no-new-privileges.no-new-privileges
+          ❰❰ Blocking ❱❱
+          Service 'grafana' allows for privilege escalation via setuid or setgid binaries. Add 'no-new-
+          privileges:true' in 'security_opt' to prevent this.                                          
+          Details: https://sg.run/0n8q                                                                 
+                                                                                                       
+           43┆ grafana:
+   
+    ❯❱ yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service
+          ❰❰ Blocking ❱❱
+          Service 'grafana' is running with a writable root filesystem. This may allow malicious applications
+          to download and run additional payloads, or modify container files. If an application inside a     
+          container has to save something temporarily consider using a tmpfs. Add 'read_only: true' to this  
+          service to prevent this.                                                                           
+          Details: https://sg.run/e4JE                                                                       
+                                                                                                             
+           43┆ grafana:
+                                
+    docker-compose-portainer.yml
+    ❯❱ yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service
+          ❰❰ Blocking ❱❱
+          Service 'portainer' is running with a writable root filesystem. This may allow malicious          
+          applications to download and run additional payloads, or modify container files. If an application
+          inside a container has to save something temporarily consider using a tmpfs. Add 'read_only: true'
+          to this service to prevent this.                                                                  
+          Details: https://sg.run/e4JE                                                                      
+                                                                                                            
+            4┆ portainer:
+   
+    ❯❱ yaml.docker-compose.security.exposing-docker-socket-volume.exposing-docker-socket-volume
+          ❰❰ Blocking ❱❱
+          Exposing host's Docker socket to containers via a volume. The owner of this socket is root. Giving
+          someone access to it is equivalent to giving unrestricted root access to your host. Remove        
+          'docker.sock' from volumes to prevent this.                                                       
+          Details: https://sg.run/O14b                                                                      
+                                                                                                            
+           14┆ volumes:
+           15┆   - /var/run/docker.sock:/var/run/docker.sock
+           16┆   - portainer_data:/data
+                              
+    docker-compose-proxmox.yml
+    ❯❱ yaml.docker-compose.security.no-new-privileges.no-new-privileges
+          ❰❰ Blocking ❱❱
+          Service 'npm' allows for privilege escalation via setuid or setgid binaries. Add 'no-new-
+          privileges:true' in 'security_opt' to prevent this.                                      
+          Details: https://sg.run/0n8q                                                             
+                                                                                                   
+            4┆ npm:
+   
+    ❯❱ yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service
+          ❰❰ Blocking ❱❱
+          Service 'npm' is running with a writable root filesystem. This may allow malicious applications to
+          download and run additional payloads, or modify container files. If an application inside a       
+          container has to save something temporarily consider using a tmpfs. Add 'read_only: true' to this 
+          service to prevent this.                                                                          
+          Details: https://sg.run/e4JE                                                                      
+                                                                                                            
+            4┆ npm:
+                    
+    front/Dockerfile
+   ❯❯❱ dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
+          ❰❰ Blocking ❱❱
+          By not specifying a USER, a program in the container may run as 'root'. This is a security hazard.
+          If an attacker can control a process running as root, they may have control over the container.   
+          Ensure that the last USER in a Dockerfile is a USER other than 'root'.                            
+          Details: https://sg.run/k281                                                                      
+                                                                                                            
+           ▶▶┆ Autofix ▶ USER non-root ENTRYPOINT ["/app/entrypoint.sh"]
+           31┆ ENTRYPOINT ["/app/entrypoint.sh"]
+   
+   ❯❯❱ dockerfile.security.missing-user.missing-user
+          ❰❰ Blocking ❱❱
+          By not specifying a USER, a program in the container may run as 'root'. This is a security hazard.
+          If an attacker can control a process running as root, they may have control over the container.   
+          Ensure that the last USER in a Dockerfile is a USER other than 'root'.                            
+          Details: https://sg.run/Gbvn                                                                      
+                                                                                                            
+           ▶▶┆ Autofix ▶ USER non-root CMD ["node", "server.js"]
+           32┆ CMD ["node", "server.js"]
+                                   
+    front/src/app/anamnese/page.tsx
+    ❯❱ javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
+          ❰❰ Blocking ❱❱
+          Possibility of prototype polluting function detected. By adding or modifying attributes of an object
+          prototype, it is possible to create attributes that exist on every object, or replace critical      
+          attributes with malicious ones. This can be problematic if the software depends on existence or non-
+          existence of certain attributes, or uses pre-defined attributes of object prototype (such as        
+          hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, 
+          using an object without prototypes (via Object.create(null) ), blocking modifications of attributes 
+          that resolve to object prototype, using Map instead of object.                                      
+          Details: https://sg.run/w1DB                                                                        
+                                                                                                              
+           98┆ current = current[keys[i]];
+            ⋮┆----------------------------------------
+          115┆ currentSection = currentSection[keys[i]];
+                                          
+    front/src/app/editar-anamnese/page.tsx
+    ❯❱ javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
+          ❰❰ Blocking ❱❱
+          Possibility of prototype polluting function detected. By adding or modifying attributes of an object
+          prototype, it is possible to create attributes that exist on every object, or replace critical      
+          attributes with malicious ones. This can be problematic if the software depends on existence or non-
+          existence of certain attributes, or uses pre-defined attributes of object prototype (such as        
+          hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, 
+          using an object without prototypes (via Object.create(null) ), blocking modifications of attributes 
+          that resolve to object prototype, using Map instead of object.                                      
+          Details: https://sg.run/w1DB                                                                        
+                                                                                                              
+          102┆ current = current[keys[i]];
+            ⋮┆----------------------------------------
+          120┆ currentSection = currentSection[keys[i]];
+                                     
+    front/src/app/editar-pei/page.tsx
+    ❯❱ javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
+          ❰❰ Blocking ❱❱
+          Possibility of prototype polluting function detected. By adding or modifying attributes of an object
+          prototype, it is possible to create attributes that exist on every object, or replace critical      
+          attributes with malicious ones. This can be problematic if the software depends on existence or non-
+          existence of certain attributes, or uses pre-defined attributes of object prototype (such as        
+          hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, 
+          using an object without prototypes (via Object.create(null) ), blocking modifications of attributes 
+          that resolve to object prototype, using Map instead of object.                                      
+          Details: https://sg.run/w1DB                                                                        
+                                                                                                              
+          108┆ current = current[keys[i]];
+            ⋮┆----------------------------------------
+          122┆ current = current[keys[i]];
+                                         
+    front/src/app/editar-triagem/page.tsx
+    ❯❱ javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
+          ❰❰ Blocking ❱❱
+          Possibility of prototype polluting function detected. By adding or modifying attributes of an object
+          prototype, it is possible to create attributes that exist on every object, or replace critical      
+          attributes with malicious ones. This can be problematic if the software depends on existence or non-
+          existence of certain attributes, or uses pre-defined attributes of object prototype (such as        
+          hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, 
+          using an object without prototypes (via Object.create(null) ), blocking modifications of attributes 
+          that resolve to object prototype, using Map instead of object.                                      
+          Details: https://sg.run/w1DB                                                                        
+                                                                                                              
+          130┆ current = current[keys[i]];
+            ⋮┆----------------------------------------
+          146┆ current = current[keys[i]];
+                              
+    front/src/app/pei/page.tsx
+    ❯❱ javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
+          ❰❰ Blocking ❱❱
+          Possibility of prototype polluting function detected. By adding or modifying attributes of an object
+          prototype, it is possible to create attributes that exist on every object, or replace critical      
+          attributes with malicious ones. This can be problematic if the software depends on existence or non-
+          existence of certain attributes, or uses pre-defined attributes of object prototype (such as        
+          hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, 
+          using an object without prototypes (via Object.create(null) ), blocking modifications of attributes 
+          that resolve to object prototype, using Map instead of object.                                      
+          Details: https://sg.run/w1DB                                                                        
+                                                                                                              
+          104┆ current = current[keys[i]];
+            ⋮┆----------------------------------------
+          117┆ current = current[keys[i]];
+                                  
+    front/src/app/triagem/page.tsx
+    ❯❱ javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
+          ❰❰ Blocking ❱❱
+          Possibility of prototype polluting function detected. By adding or modifying attributes of an object
+          prototype, it is possible to create attributes that exist on every object, or replace critical      
+          attributes with malicious ones. This can be problematic if the software depends on existence or non-
+          existence of certain attributes, or uses pre-defined attributes of object prototype (such as        
+          hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, 
+          using an object without prototypes (via Object.create(null) ), blocking modifications of attributes 
+          that resolve to object prototype, using Map instead of object.                                      
+          Details: https://sg.run/w1DB                                                                        
+                                                                                                              
+          125┆ current = current[keys[i]];
+            ⋮┆----------------------------------------
+          139┆ current = current[keys[i]];
