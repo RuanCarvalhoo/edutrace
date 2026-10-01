@@ -18,6 +18,7 @@ import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
+import { ActivateAccountDto } from './dto/activate-account.dto';
 import { AuthGuard } from './auth.guard';
 import { Public } from './constants/constants';
 import { AllowPasswordChange } from './decorators/allow-password-change.decorator';
@@ -122,6 +123,21 @@ export class AuthController {
       dto.code,
       dto.password,
     );
+  }
+
+  @Public()
+  @UseGuards(ThrottlerGuard)
+  @ApiBody({
+    type: ActivateAccountDto,
+    description:
+      'Objeto para definir a primeira senha com o link enviado por e-mail no cadastro.',
+  })
+  @HttpCode(HttpStatus.OK)
+  @Post('activate')
+  async activateAccount(
+    @Body() dto: ActivateAccountDto,
+  ): Promise<{ message: string }> {
+    return await this.authService.activateAccount(dto.token, dto.password);
   }
 
   @AllowPasswordChange()

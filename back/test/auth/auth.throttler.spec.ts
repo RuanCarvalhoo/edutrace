@@ -21,6 +21,7 @@ describe('AuthController rate limit', () => {
           useValue: {
             signIn: jest.fn().mockResolvedValue({ access_token: 'token' }),
             forgotPassword: jest.fn().mockResolvedValue({ message: 'ok' }),
+            activateAccount: jest.fn().mockResolvedValue({ message: 'ok' }),
           },
         },
       ],
@@ -73,6 +74,22 @@ describe('AuthController rate limit', () => {
       .post('/auth/forgot-password')
       .set('X-Forwarded-For', '10.0.0.3')
       .send({ email: 'user@test.com' });
+
+    expect(response.status).toBe(429);
+  });
+
+  it('should also protect the account activation route', async () => {
+    const postActivate = () =>
+      request(app.getHttpServer())
+        .post('/auth/activate')
+        .set('X-Forwarded-For', '10.0.0.4')
+        .send({ token: 'token-do-link', password: 'novaSenha123' });
+
+    for (let attempt = 0; attempt < LIMIT; attempt++) {
+      await postActivate();
+    }
+
+    const response = await postActivate();
 
     expect(response.status).toBe(429);
   });

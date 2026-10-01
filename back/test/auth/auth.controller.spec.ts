@@ -24,6 +24,7 @@ describe('AuthController', () => {
             forgotPassword: jest.fn(),
             verifyResetCode: jest.fn(),
             resetPassword: jest.fn(),
+            activateAccount: jest.fn(),
           },
         },
       ],
@@ -270,6 +271,38 @@ describe('AuthController', () => {
       await expect(controller.resetPassword(dto)).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+  });
+
+  describe('activateAccount', () => {
+    it('should delegate to the service and return its result', async () => {
+      const dto = { token: 'token-do-link', password: 'novaSenha123' };
+      const response = { message: 'Senha definida com sucesso.' };
+
+      jest.spyOn(service, 'activateAccount').mockResolvedValue(response);
+
+      const result = await controller.activateAccount(dto);
+
+      expect(service.activateAccount).toHaveBeenCalledWith(
+        dto.token,
+        dto.password,
+      );
+      expect(result).toEqual(response);
+    });
+
+    it('should propagate UnauthorizedException from the service', async () => {
+      jest
+        .spyOn(service, 'activateAccount')
+        .mockRejectedValue(
+          new UnauthorizedException('Link inválido ou expirado.'),
+        );
+
+      await expect(
+        controller.activateAccount({
+          token: 'token-vencido',
+          password: 'novaSenha123',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 
