@@ -13,6 +13,7 @@ import { ESTUDANTE, PROFISSIONAL_EDUCACAO } from "@/consts";
 import { useRouter } from "next/navigation";
 import { useEstudanteDaUrl } from "@/hooks/useEstudanteDaUrl";
 import { rotaDoEstudante } from "@/utils/estudanteDaUrl";
+import { setNestedField, toggleNestedField } from "@/utils/nestedField";
 
 const BrInput = dynamic(() =>
   import("@govbr-ds-testing/webcomponents-react").then((mod) => mod.BrInput), { ssr: false }
@@ -90,40 +91,11 @@ function AnamnesePage() {
 
 
   const handleInputChange = (name: string, value: string) => {
-    const keys = name.split('.');
-    
-    setFormData(prevData => {
-      const newData = JSON.parse(JSON.stringify(prevData));
-      let current = newData;
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-      current[keys[keys.length - 1]] = value;
-      return newData;
-    });
+    setFormData(prevData => setNestedField(prevData, name, value));
   };
 
   const handleCheckboxClick = (name: string) => {
-    const keys = name.split('.');
-    
-    setFormData(prevData => {
-      // Criar uma cópia profunda para segurança
-      const newData = JSON.parse(JSON.stringify(prevData));
-      
-      let currentSection = newData;
-      // Navega até o penúltimo nível do objeto
-      for (let i = 0; i < keys.length - 1; i++) {
-        currentSection = currentSection[keys[i]];
-      }
-      
-      const finalKey = keys[keys.length - 1];
-      const currentValue = currentSection[finalKey];
-      
-      // Inverte o valor booleano atual
-      currentSection[finalKey] = !currentValue;
-      
-      return newData;
-    });
+    setFormData(prevData => toggleNestedField(prevData, name));
   };
 
   const handleSubmit = async () => {

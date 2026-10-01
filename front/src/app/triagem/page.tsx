@@ -13,6 +13,7 @@ import { getScreeningByEmail, postScreening, deleteScreening } from "@/api/scree
 import { useRouter } from "next/navigation";
 import { useEstudanteDaUrl } from "@/hooks/useEstudanteDaUrl";
 import { rotaDoEstudante } from "@/utils/estudanteDaUrl";
+import { setNestedField, toggleNestedField } from "@/utils/nestedField";
 
 const BrInput = dynamic(() =>
   import("@govbr-ds-testing/webcomponents-react").then((mod) => mod.BrInput), { ssr: false }
@@ -118,31 +119,12 @@ function TriagemPage() {
 
   // Manipulador para inputs de texto (BrInput)
   const handleInputChange = (name: string, value: string) => {
-    const keys = name.split('.');
-    setFormData(prevData => {
-      const newData = JSON.parse(JSON.stringify(prevData));
-      let current = newData;
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-      current[keys[keys.length - 1]] = value;
-      return newData;
-    });
+    setFormData(prevData => setNestedField(prevData, name, value));
   };
 
   // Manipulador para o CLIQUE no checkbox que inverte o valor no estado
   const handleCheckboxClick = (name: string) => {
-    const keys = name.split('.');
-    setFormData(prevData => {
-      const newData = JSON.parse(JSON.stringify(prevData));
-      let current = newData;
-      for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
-      }
-      const finalKey = keys[keys.length - 1];
-      current[finalKey] = !current[finalKey]; // Inverte o valor booleano
-      return newData;
-    });
+    setFormData(prevData => toggleNestedField(prevData, name));
   };
 
   // Função para submeter o novo formulário
