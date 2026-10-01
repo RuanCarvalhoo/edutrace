@@ -12,6 +12,8 @@ on:
       - '.env.development.example'
       - '.env.production.example'
       - '.github/workflows/pr-checks.yml'
+      - '.github/workflows/**'
+      - '.github/dependabot.yml'
   workflow_dispatch:
 
 env:
@@ -25,12 +27,13 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       deploy_config: ${{ steps.filter.outputs.deploy_config }}
+      ci_config: ${{ steps.filter.outputs.ci_config }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Filtrar caminhos alterados
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
         with:
           filters: |
             backend:
@@ -46,6 +49,9 @@ jobs:
               - '.env.production.example'
               - 'front/src/middleware.ts'
               - '.github/workflows/pr-checks.yml'
+            ci_config:
+              - '.github/workflows/**'
+              - '.github/dependabot.yml'
 
 # --------------------------------------------------------------------
 # BACKEND TESTS ------------------------------------------------------
@@ -76,10 +82,10 @@ jobs:
       DATABASE_URL: postgresql://test:test@localhost:5432/testdb
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Configurar Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -142,7 +148,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # Builda a imagem exatamente como em produção. Reproduz a ordem do
       # Dockerfile (prisma generate -> nest build) e pega regressões que só
@@ -161,10 +167,10 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Configurar Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -200,7 +206,7 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # O middleware do front verifica a sessão chamando o backend a partir do
       # servidor Next, que roda dentro do container. Com o endereço publicado no
@@ -259,7 +265,7 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # Renderiza o compose com uma porta de host diferente de 3000. É esse
       # cenário que separa uma configuração correta de uma que só funciona por
@@ -342,7 +348,7 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # O back alcança o banco pelo nome do serviço na rede app-net, então o
       # PostgreSQL não precisa de porta no host. Porta publicada abre o banco em
@@ -387,3 +393,52 @@ jobs:
           fi
 
           echo "OK: o PostgreSQL do compose de produção não publica porta no host."
+
+# --------------------------------------------------------------------
+# CONFIG: DEPENDÊNCIAS DO CI -----------------------------------------
+# --------------------------------------------------------------------
+  ci-dependencies-check:
+    name: "Config: Dependências do CI"
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.ci_config == 'true' }}
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # Tag e branch de action são referências móveis: quem controla o
+      # repositório da action pode repontá-las para outro código, que passa a
+      # rodar com os segredos e o GITHUB_TOKEN do workflow. Só o SHA completo do
+      # commit é imutável. Referências locais (./) e imagens (docker://) não
+      # passam por essa verificação.
+      - name: Verificar que toda action está fixada por SHA
+        run: |
+          sem_sha=$(grep -rnHE --include='*.yml' --include='*.yaml' '^[[:space:]]*(-[[:space:]]+)?uses:' .github/workflows \
+            | grep -vE 'uses:[[:space:]]*(\./|docker://)' \
+            | grep -vE '@[0-9a-f]{40}([[:space:]]|$)' || true)
+
+          if [ -n "$sem_sha" ]; then
+            echo "ERRO: actions referenciadas por tag ou branch, que podem ser repontadas:"
+            echo "$sem_sha"
+            echo "   Use o SHA completo do commit, com a versão em comentário: uses: dono/action@<sha> # vX"
+            exit 1
+          fi
+
+          echo "OK: todas as actions dos workflows estão fixadas por SHA."
+
+      # Versão recém-publicada é a janela em que um release malicioso ainda não
+      # foi detectado e retirado do registro. O cooldown atrasa só as version
+      # updates; as atualizações de segurança do Dependabot continuam imediatas.
+      - name: Verificar cooldown do Dependabot
+        run: |
+          sem_cooldown=$(yq '.updates[] | select((.cooldown."default-days" // 0) < 7) | ."package-ecosystem" + " em " + .directory' .github/dependabot.yml)
+
+          if [ -n "$sem_cooldown" ]; then
+            echo "ERRO: entradas do Dependabot sem cooldown de pelo menos 7 dias:"
+            echo "$sem_cooldown"
+            echo "   Adicione cooldown.default-days: 7 (ou mais) a cada package-ecosystem."
+            exit 1
+          fi
+
+          echo "OK: todas as entradas do Dependabot têm cooldown de pelo menos 7 dias."

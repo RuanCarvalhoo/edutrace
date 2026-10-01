@@ -11,6 +11,8 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "America/Sao_Paulo"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore: "
@@ -60,6 +62,8 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "America/Sao_Paulo"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore: "
@@ -87,3 +91,25 @@ updates:
       types:
         patterns:
           - "@types/*"
+
+  # ─────────────────────────────────────────────
+  # GitHub Actions (workflows fixados por SHA)
+  # ─────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "ci: "
+    labels:
+      - "type: chore"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
