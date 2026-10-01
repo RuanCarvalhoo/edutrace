@@ -1,39 +1,90 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { hash } from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import { LEVELS, PHASES } from 'src/constants';
 import { SessionsService } from 'src/sessions/sessions.service';
+import { MailService } from 'src/mail/mail.service';
+import {
+  ACTIVATION_TOKEN_TTL_MS,
+  buildActivationLink,
+  generateActivationToken,
+} from 'src/auth/activation-token';
 import { Prisma } from '@prisma/client';
 import { PUBLIC_USER_SELECT } from './users.select';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private prisma: PrismaService,
     private sessionsService: SessionsService,
+    private mailService: MailService,
   ) {}
 
+  // O administrador não define a senha: a conta nasce com uma senha aleatória
+  // que ninguém conhece, e a pessoa cadastrada escolhe a dela pelo link enviado
+  // ao e-mail. Assim nenhuma senha conhecida por terceiros chega a existir, e o
+  // primeiro acesso não precisa de troca obrigatória.
   async create(createUserDto: CreateUserDto) {
-    const encryptedPassword = await hash(createUserDto.password, 10);
     const { id_level, ...userData } = createUserDto;
+    const activation = generateActivationToken();
+    const activationExpires = new Date(Date.now() + ACTIVATION_TOKEN_TTL_MS);
+
+    let user: Prisma.UserGetPayload<{ select: typeof PUBLIC_USER_SELECT }>;
 
     try {
-      return await this.prisma.user.create({
+      user = await this.prisma.user.create({
         select: PUBLIC_USER_SELECT,
         data: {
           ...userData,
-          password: encryptedPassword,
+          password: await hash(randomUUID(), 10),
           id_level: id_level ?? LEVELS.ALUNO_ESTUDANTE,
           id_current_phase: PHASES.TRIAGEM,
-          must_change_password: true,
+          must_change_password: false,
+          activation_token: activation.hash,
+          activation_expires: activationExpires,
         },
       });
     } catch (error) {
       // cpf e email são únicos no schema. Sem este tratamento a violação da
       // constraint sobe como 500 e quem cadastra não sabe o que aconteceu.
       throw this.duplicateFieldError(error) ?? error;
+    }
+
+    const activation_email_sent = await this.sendActivationLink(
+      user,
+      activation.token,
+      activationExpires,
+    );
+
+    return { ...user, activation_email_sent };
+  }
+
+  // Falha de envio não desfaz o cadastro: a conta fica criada e a pessoa
+  // consegue definir a senha por "Esqueci minha senha". O retorno avisa o
+  // administrador de que o e-mail não saiu.
+  private async sendActivationLink(
+    user: { id: number; email: string },
+    token: string,
+    expiresAt: Date,
+  ): Promise<boolean> {
+    try {
+      await this.mailService.sendAccountActivationLink(
+        user.email,
+        buildActivationLink(token),
+        expiresAt,
+      );
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Falha ao enviar o link de definição de senha do usuário ${user.id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      return false;
     }
   }
 
@@ -73,6 +124,15 @@ export class UsersService {
     return this.prisma.user.findUnique({
       where: {
         email: email,
+      },
+    });
+  }
+
+  // Uso interno da ativação de conta. Recebe o hash do token, nunca o token.
+  async findByActivationToken(tokenHash: string) {
+    return this.prisma.user.findUnique({
+      where: {
+        activation_token: tokenHash,
       },
     });
   }
@@ -212,6 +272,8 @@ export class UsersService {
     });
   }
 
+  // Usado pela redefinição e pela ativação de conta. Gravar uma senha por
+  // qualquer um dos dois caminhos invalida o código e o link pendentes do outro.
   async updatePassword(email: string, hashedPassword: string) {
     return this.prisma.user.update({
       where: { email: email },
@@ -220,6 +282,8 @@ export class UsersService {
         password_reset_token: null,
         password_reset_expires: null,
         password_reset_attempts: 0,
+        activation_token: null,
+        activation_expires: null,
         must_change_password: false,
         failed_login_attempts: 0,
         locked_until: null,
