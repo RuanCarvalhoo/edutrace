@@ -1,8 +1,18 @@
+"use client";
+
 import Script from "next/script";
+import { usePathname } from "next/navigation";
+import { shouldLoadClarity } from "@/utils/clarity";
 
 const DEFAULT_CLARITY_PROJECT_ID = "y4ln1tkqfy";
 
 export function MicrosoftClarity() {
+  const pathname = usePathname();
+
+  if (!shouldLoadClarity(pathname)) {
+    return null;
+  }
+
   return (
     <Script id="microsoft-clarity" strategy="afterInteractive">
       {`(function(c,l,a,r,i,t,y){
