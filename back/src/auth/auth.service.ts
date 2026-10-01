@@ -14,6 +14,7 @@ import * as bcrypt from 'bcryptjs';
 import { randomInt, randomUUID } from 'node:crypto';
 import { SessionsService } from 'src/sessions/sessions.service';
 import { LEVELS } from 'src/constants';
+import { hashActivationToken } from './activation-token';
 
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
 const MAX_RESET_ATTEMPTS = 5;
@@ -436,6 +437,35 @@ export class AuthService {
     await this.sessionsService.revokeAllFromUser(user.id);
 
     return { message: 'Senha redefinida com sucesso.' };
+  }
+
+  // Primeiro acesso de quem foi cadastrado pelo administrador. O link vale uma
+  // vez: updatePassword apaga o token. Não abre sessão, a pessoa entra pelo
+  // login com a senha que acabou de definir.
+  async activateAccount(
+    token: string,
+    password: string,
+  ): Promise<{ message: string }> {
+    const user = await this.userService.findByActivationToken(
+      hashActivationToken(token),
+    );
+
+    if (
+      !user ||
+      !user.activation_expires ||
+      user.activation_expires < new Date()
+    ) {
+      throw new UnauthorizedException('Link inválido ou expirado.');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await this.userService.updatePassword(user.email, hashedPassword);
+
+    // Mesmo tratamento de resetPassword: sessões abertas antes da senha, como
+    // uma entrada pelo Google, são encerradas.
+    await this.sessionsService.revokeAllFromUser(user.id);
+
+    return { message: 'Senha definida com sucesso.' };
   }
 
   private async validateResetCode(email: string, code: string) {
