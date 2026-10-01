@@ -27,7 +27,10 @@ const GOOGLE_DISCENTE_DOMAIN = '@discente.ifpe.edu.br';
 // descartável. Serve para que o caminho de e-mail inexistente pague o mesmo custo
 // de CPU do caminho de senha incorreta: sem essa comparação, a diferença de tempo
 // de resposta distingue os dois casos mesmo com a mensagem unificada.
+// Não é credencial de nenhuma conta, por isso a regra de segredo do Semgrep é
+// suprimida na linha do valor.
 const NON_EXISTENT_USER_PASSWORD_HASH =
+  // nosemgrep: generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash
   '$2b$10$iMrrGyWs8x9.Ue/VXnHYlORQpzM/P9Hm0ETaQYvUpIc5i0.3SvKt2';
 
 export type SessionContext = {
