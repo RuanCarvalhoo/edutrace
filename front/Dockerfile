@@ -27,6 +27,14 @@ COPY --from=builder /app/public ./public
 COPY docker-entrypoint.sh /app/entrypoint.sh
 RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
+# Roda sem root. Só o que o servidor grava em runtime pertence ao usuário node:
+# o runtime-config.js que o entrypoint reescreve a cada start e o cache do
+# otimizador de imagens do next/image.
+RUN touch /app/public/runtime-config.js \
+  && mkdir -p /app/.next/cache \
+  && chown node:node /app/public/runtime-config.js /app/.next/cache
+USER node
+
 EXPOSE 3000
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["node", "server.js"]
