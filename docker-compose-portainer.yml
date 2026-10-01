@@ -7,10 +7,15 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    read_only: true
     ports:
       - "9443:9443" # Interface web HTTPS
       - "9000:9000" # Interface web HTTP (opcional)
       - "8000:8000" # Agente Portainer
+    # O Portainer administra o Docker deste host e não funciona sem a API do
+    # daemon. Acesso ao socket equivale a root no host, então quem controla o
+    # Portainer controla o host.
+    # nosemgrep: yaml.docker-compose.security.exposing-docker-socket-volume.exposing-docker-socket-volume
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock 
       - portainer_data:/data

@@ -9,6 +9,9 @@ on:
       - 'front/**'
       - 'docker-compose-dev.yml'
       - 'docker-compose-prod.yml'
+      - 'docker-compose-observability.yml'
+      - 'docker-compose-portainer.yml'
+      - 'docker-compose-proxmox.yml'
       - '.env.development.example'
       - '.env.production.example'
       - '.github/workflows/pr-checks.yml'
@@ -45,6 +48,9 @@ jobs:
             deploy_config:
               - 'docker-compose-dev.yml'
               - 'docker-compose-prod.yml'
+              - 'docker-compose-observability.yml'
+              - 'docker-compose-portainer.yml'
+              - 'docker-compose-proxmox.yml'
               - '.env.development.example'
               - '.env.production.example'
               - 'front/src/middleware.ts'
@@ -464,6 +470,59 @@ jobs:
           fi
 
           echo "✅ Serviço do front aponta para $imagem e escuta em $destino."
+
+# --------------------------------------------------------------------
+# CONFIG: HARDENING DOS COMPOSES DE INFRA ----------------------------
+# --------------------------------------------------------------------
+  infra-compose-hardening-check:
+    name: "Config: Hardening dos composes de infra"
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy_config == 'true' }}
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # no-new-privileges impede que um processo do container ganhe privilégio
+      # por binário setuid/setgid. read_only impede que um processo comprometido
+      # grave binários ou altere arquivos da imagem; o que o serviço precisa
+      # gravar fica em volume ou tmpfs declarado no compose. O
+      # nginx-proxy-manager executa useradd em /etc/passwd a cada start e não
+      # sobe com o rootfs somente leitura, por isso só ele fica sem read_only.
+      - name: Verificar read_only e no-new-privileges nos serviços de infra
+        run: |
+          status=0
+
+          for arquivo in docker-compose-observability.yml docker-compose-portainer.yml docker-compose-proxmox.yml; do
+            docker compose -f "$arquivo" config --format json > compose.json
+
+            python3 - "$arquivo" <<'PY' || status=1
+          import json
+          import sys
+
+          arquivo = sys.argv[1]
+          sem_read_only_permitido = {"npm"}
+          falhas = []
+
+          for nome, servico in json.load(open("compose.json"))["services"].items():
+              if "no-new-privileges:true" not in servico.get("security_opt", []):
+                  falhas.append(f"{nome} sem security_opt no-new-privileges:true")
+              if not servico.get("read_only") and nome not in sem_read_only_permitido:
+                  falhas.append(f"{nome} sem read_only: true")
+
+          for falha in falhas:
+              print(f"ERRO: {arquivo}: {falha}.")
+
+          sys.exit(1 if falhas else 0)
+          PY
+          done
+
+          if [ "$status" -ne 0 ]; then
+            exit 1
+          fi
+
+          echo "OK: os serviços de infra rodam com no-new-privileges e rootfs somente leitura."
 
 # --------------------------------------------------------------------
 # CONFIG – PORTA DO POSTGRESQL NO COMPOSE DE PRODUÇÃO -----------------
