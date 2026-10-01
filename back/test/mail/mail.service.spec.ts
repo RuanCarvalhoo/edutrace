@@ -140,4 +140,45 @@ describe('MailService', () => {
       ).rejects.toThrow('SMTP indisponível');
     });
   });
+
+  describe('sendAccountActivationLink', () => {
+    const link =
+      'https://edutrace.example.com/definir-senha#token=abc_123-XYZ';
+    const expiresAt = new Date('2026-10-02T15:00:00.000Z');
+
+    it('should send the link and its deadline in Brasília time', async () => {
+      await service.sendAccountActivationLink('novo@test.com', link, expiresAt);
+
+      expect(sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: 'EduTrace <nao-responda@test.com>',
+          to: 'novo@test.com',
+          subject: 'EduTrace - Defina sua senha de acesso',
+          text: expect.stringContaining(link),
+          html: expect.stringContaining(`href="${link}"`),
+        }),
+      );
+
+      const [message] = sendMail.mock.calls[0] as [
+        { text: string; html: string },
+      ];
+      expect(message.text).toContain('02/10/2026, 12:00:00');
+      expect(message.html).toContain('02/10/2026, 12:00:00');
+    });
+
+    it('should point to the password recovery when the link expires', async () => {
+      await service.sendAccountActivationLink('novo@test.com', link, expiresAt);
+
+      const [message] = sendMail.mock.calls[0] as [{ text: string }];
+      expect(message.text).toContain('Esqueci minha senha');
+    });
+
+    it('should propagate errors from sendMail', async () => {
+      sendMail.mockRejectedValue(new Error('SMTP indisponível'));
+
+      await expect(
+        service.sendAccountActivationLink('novo@test.com', link, expiresAt),
+      ).rejects.toThrow('SMTP indisponível');
+    });
+  });
 });
