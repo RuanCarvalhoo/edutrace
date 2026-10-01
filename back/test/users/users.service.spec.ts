@@ -27,6 +27,8 @@ describe('UsersService', () => {
     password_reset_token: null,
     password_reset_expires: null,
     password_reset_attempts: 0,
+    activation_token: null,
+    activation_expires: null,
     must_change_password: false,
     failed_login_attempts: 0,
     locked_until: null,
