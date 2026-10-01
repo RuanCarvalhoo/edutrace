@@ -1,10 +1,15 @@
 version: '3.8'
 
 services:
+  # A imagem do nginx-proxy-manager executa useradd em /etc/passwd a cada start
+  # e não sobe com o rootfs somente leitura.
+  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service
   npm:
     image: jc21/nginx-proxy-manager:latest
     container_name: npm
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "80:80"    # HTTP
       - "443:443"  # HTTPS
