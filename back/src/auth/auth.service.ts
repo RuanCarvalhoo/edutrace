@@ -13,7 +13,6 @@ import { MailService } from 'src/mail/mail.service';
 import * as bcrypt from 'bcryptjs';
 import { randomInt, randomUUID } from 'node:crypto';
 import { SessionsService } from 'src/sessions/sessions.service';
-import { LEVELS } from 'src/constants';
 
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
 const MAX_RESET_ATTEMPTS = 5;
@@ -156,16 +155,7 @@ export class AuthService {
     }
 
     try {
-      return await this.issueSessionToken(
-        {
-          ...user,
-          must_change_password: false,
-          id_level: email.endsWith(GOOGLE_DISCENTE_DOMAIN)
-            ? LEVELS.ALUNO_ESTUDANTE
-            : user.id_level,
-        },
-        context,
-      );
+      return await this.issueSessionToken(user, context);
     } catch (error) {
       this.throwIfDatabaseUnavailable(error);
       throw error;
