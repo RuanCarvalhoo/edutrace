@@ -9,6 +9,7 @@ import { fetchSessionUser } from "@/services/auth/sessionUser";
 import Swal from "sweetalert2";
 import Loading from "@/components/Loading";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
+import { EMAIL_PATTERN } from "@/utils/emailPattern";
 
 const GITHUB_LATEST_RELEASE_API =
   "https://api.github.com/repos/jardimdesoftware/edutrace/releases/latest";
@@ -152,7 +153,7 @@ function LoginPage() {
                       <input
                         type="email"
                         required
-                        pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                        pattern={EMAIL_PATTERN}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className="h-full min-w-0 flex-1 bg-transparent text-base text-[#071640] outline-none"
