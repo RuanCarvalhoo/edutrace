@@ -6,8 +6,6 @@ const form = {
   nome: "  Maria Souza  ",
   email: "  Maria.Souza@Escola.Br  ",
   cpf: "111.444.777-35",
-  senha: "senhaSegura1",
-  confirmarSenha: "senhaSegura1",
   id_level: "3",
 };
 
@@ -21,7 +19,6 @@ describe("buildRegisterData", () => {
         full_name: "Maria Souza",
         email: "maria.souza@escola.br",
         cpf: "11144477735",
-        password: "senhaSegura1",
         id_level: 3,
       },
     });
@@ -32,13 +29,6 @@ describe("buildRegisterData", () => {
       ok: false,
       error: "É necessário aceitar o Termo de Consentimento.",
     });
-  });
-
-  it("refuses when the password confirmation is different", () => {
-    assert.deepEqual(
-      buildRegisterData({ ...form, confirmarSenha: "outraSenha1" }, true),
-      { ok: false, error: "As senhas não coincidem." },
-    );
   });
 
   it("refuses a cpf that does not have eleven digits", () => {
