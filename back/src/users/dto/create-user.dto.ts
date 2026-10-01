@@ -6,7 +6,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  MinLength,
 } from 'class-validator';
 import { IsCpf, onlyDigits } from 'src/common/validators/is-cpf.validator';
 
@@ -38,16 +37,6 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'O campo email não deve estar vazio.' })
   @IsString({ message: 'O campo email deve ser uma string.' })
   email: string;
-
-  @ApiProperty({
-    description: 'Senha do usuário com no mínimo 8 caracteres.',
-    example: 'senhaSegura123',
-    minLength: 8,
-  })
-  @IsNotEmpty({ message: 'O campo password não deve estar vazio.' })
-  @IsString({ message: 'O campo password deve ser uma string' })
-  @MinLength(8, { message: 'A senha deve ter no mínimo 8 caracteres' })
-  password: string;
 
   @ApiProperty({
     description: 'Filiação do usuário',
