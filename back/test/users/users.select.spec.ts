@@ -6,6 +6,8 @@ describe('PUBLIC_USER_SELECT', () => {
     'password_reset_token',
     'password_reset_expires',
     'password_reset_attempts',
+    'activation_token',
+    'activation_expires',
     'must_change_password',
     'failed_login_attempts',
     'locked_until',

@@ -4,8 +4,8 @@ import { Prisma } from '@prisma/client';
 // permissão, campo novo no model User fica de fora até ser incluído aqui, o que
 // evita que uma coluna sensível vaze por esquecimento.
 //
-// Ficam de fora: password, os campos de recuperação de senha e os contadores de
-// bloqueio de login.
+// Ficam de fora: password, os campos de recuperação de senha, o link de ativação
+// da conta e os contadores de bloqueio de login.
 export const PUBLIC_USER_SELECT = {
   id: true,
   full_name: true,
