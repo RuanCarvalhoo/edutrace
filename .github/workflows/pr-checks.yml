@@ -147,6 +147,21 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true' }}
     timeout-minutes: 15
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -155,6 +170,52 @@ jobs:
       # aparecem no build do container, não nos testes unitários.
       - name: Build da imagem Docker do backend
         run: docker build ./back -f back/Dockerfile -t edutrace-back:pr-check
+
+      # A imagem roda sem root e os arquivos dela continuam do root, então o
+      # processo não consegue reescrever o próprio código. O CMD (migrations,
+      # seed e start) precisa continuar funcionando assim, por isso o container
+      # sobe de verdade contra o PostgreSQL do job.
+      - name: Verificar que o container do backend sobe sem root
+        run: |
+          uid=$(docker run --rm --entrypoint id edutrace-back:pr-check -u)
+          if [ "$uid" = "0" ]; then
+            echo "ERRO: a imagem do backend roda como root."
+            echo "   Declare USER node no back/Dockerfile antes do CMD."
+            exit 1
+          fi
+
+          docker run -d --name backend-pr-check --network host \
+            -e PORT=3000 \
+            -e DATABASE_URL=postgresql://test:test@localhost:5432/testdb \
+            -e NODE_ENV=production \
+            -e SECRET_KEY="$(openssl rand -hex 32)" \
+            -e FRONTEND_URL=http://localhost:3001 \
+            -e ADMIN_PASSWORD=admin123 \
+            edutrace-back:pr-check
+
+          status=000
+          for tentativa in $(seq 1 60); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/auth/profile || true)
+            if [ "$status" != "000" ] || [ "$(docker inspect -f '{{.State.Running}}' backend-pr-check)" != "true" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          docker logs backend-pr-check
+
+          # Rota protegida: 401 prova que migrations, seed e bootstrap passaram.
+          if [ "$status" != "401" ]; then
+            echo "ERRO: o container do backend não subiu sem root (HTTP $status em /auth/profile)."
+            exit 1
+          fi
+
+          if docker exec backend-pr-check touch dist/src/main.js 2>/dev/null; then
+            echo "ERRO: o processo do backend consegue reescrever o código da imagem."
+            exit 1
+          fi
+
+          echo "OK: o backend roda com UID $uid, sobe com migrations e seed e não altera o próprio código."
 
 # --------------------------------------------------------------------
 # FRONTEND LINT + BUILD ----------------------------------------------
@@ -194,6 +255,73 @@ jobs:
           NEXT_PUBLIC_API_EDU_TRACE: http://localhost:3001
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build
+
+# --------------------------------------------------------------------
+# FRONTEND DOCKER BUILD ----------------------------------------------
+# --------------------------------------------------------------------
+  frontend-docker-build:
+    name: "Frontend: Build da imagem Docker"
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true' }}
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Build da imagem Docker do frontend
+        run: docker build ./front -f front/Dockerfile -t edutrace-front:pr-check
+
+      # O servidor roda sem root. Só o runtime-config.js, que o entrypoint
+      # reescreve a cada start, e o cache do otimizador do next/image pertencem
+      # ao usuário do processo; o resto da imagem continua do root.
+      - name: Verificar que o container do frontend sobe sem root
+        run: |
+          uid=$(docker run --rm --entrypoint id edutrace-front:pr-check -u)
+          if [ "$uid" = "0" ]; then
+            echo "ERRO: a imagem do frontend roda como root."
+            echo "   Declare USER node no front/Dockerfile antes do ENTRYPOINT."
+            exit 1
+          fi
+
+          docker run -d --name frontend-pr-check -p 3000:3000 \
+            -e API_URL=https://api.exemplo \
+            -e CLARITY_PROJECT_ID=off \
+            edutrace-front:pr-check
+
+          status=000
+          for tentativa in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/login || true)
+            if [ "$status" != "000" ] || [ "$(docker inspect -f '{{.State.Running}}' frontend-pr-check)" != "true" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          docker logs frontend-pr-check
+
+          if [ "$status" != "200" ]; then
+            echo "ERRO: o container do frontend não subiu sem root (HTTP $status em /login)."
+            exit 1
+          fi
+
+          if ! docker exec frontend-pr-check grep -qF 'API_URL = "https://api.exemplo"' /app/public/runtime-config.js; then
+            echo "ERRO: o entrypoint não conseguiu gravar /app/public/runtime-config.js."
+            exit 1
+          fi
+
+          imagem=$(curl -s -o /dev/null -w '%{http_code}' 'http://localhost:3000/_next/image?url=%2Ficon.png&w=64&q=75' || true)
+          if [ "$imagem" != "200" ]; then
+            echo "ERRO: o otimizador do next/image falhou sem root (HTTP $imagem)."
+            exit 1
+          fi
+
+          if docker exec frontend-pr-check touch /app/server.js 2>/dev/null; then
+            echo "ERRO: o processo do frontend consegue reescrever o código da imagem."
+            exit 1
+          fi
+
+          echo "OK: o frontend roda com UID $uid, grava a config de runtime e não altera o próprio código."
 
 # --------------------------------------------------------------------
 # CONFIG – URL INTERNA DA API ----------------------------------------

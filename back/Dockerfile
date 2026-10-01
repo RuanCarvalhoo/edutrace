@@ -16,5 +16,9 @@ RUN npm run build
 
 EXPOSE 3000
 
-# CMD final: gera Prisma Client, aplica migrations e roda app
-CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npm run seed && npm run start:prod"]
+# Roda sem root. Os arquivos da imagem continuam do root, então o processo não
+# consegue reescrever o próprio código nem o Prisma Client gerado no build.
+USER node
+
+# CMD final: aplica migrations, roda o seed e sobe a app
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run seed && npm run start:prod"]
