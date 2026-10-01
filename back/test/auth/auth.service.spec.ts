@@ -71,6 +71,7 @@ describe('AuthService', () => {
             registerFailedLoginAttempt: jest.fn(),
             lockAccount: jest.fn(),
             clearLoginLock: jest.fn(),
+            ensureGoogleStudentUser: jest.fn(),
           },
         },
         {
@@ -417,6 +418,57 @@ describe('AuthService', () => {
 
       expect(sessionsService.revokeAllFromUser).toHaveBeenCalledWith(
         mockUserWithResetToken.id,
+      );
+    });
+  });
+
+  describe('signInWithGoogle', () => {
+    const discenteEmail = 'aluno@discente.ifpe.edu.br';
+    let originalClientId: string | undefined;
+    let originalFetch: typeof fetch;
+
+    const mockGoogleCredential = (email: string) => {
+      globalThis.fetch = (async () =>
+        new Response(
+          JSON.stringify({
+            aud: 'client-id',
+            email,
+            email_verified: true,
+            name: 'Nome no Google',
+            sub: 'google-sub',
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )) as typeof fetch;
+    };
+
+    beforeEach(() => {
+      originalClientId = process.env.GOOGLE_CLIENT_ID;
+      originalFetch = globalThis.fetch;
+      process.env.GOOGLE_CLIENT_ID = 'client-id';
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      if (originalClientId === undefined) {
+        delete process.env.GOOGLE_CLIENT_ID;
+      } else {
+        process.env.GOOGLE_CLIENT_ID = originalClientId;
+      }
+    });
+
+    it('should issue the token with the level stored for an existing @discente account', async () => {
+      mockGoogleCredential(discenteEmail);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('randomHash');
+      jest.spyOn(usersService, 'ensureGoogleStudentUser').mockResolvedValue({
+        ...mockUser,
+        email: discenteEmail,
+        id_level: 3,
+      });
+
+      await service.signInWithGoogle('credencial');
+
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ email: discenteEmail, id_level: 3 }),
       );
     });
   });
