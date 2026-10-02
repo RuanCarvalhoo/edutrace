@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { AuthController } from 'src/auth/auth.controller';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthService } from 'src/auth/auth.service';
@@ -25,6 +25,7 @@ describe('AuthController', () => {
             verifyResetCode: jest.fn(),
             resetPassword: jest.fn(),
             activateAccount: jest.fn(),
+            completeRegistration: jest.fn(),
           },
         },
       ],
@@ -303,6 +304,51 @@ describe('AuthController', () => {
           password: 'novaSenha123',
         }),
       ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('completeRegistration', () => {
+    const dto = { cpf: '01234567890', password: 'senhaNovaSegura1' };
+
+    it('should replace the session cookie with the token issued after the registration', async () => {
+      const resposta = criarRespostaFalsa();
+      jest
+        .spyOn(service, 'completeRegistration')
+        .mockResolvedValue({ access_token: 'novo.jwt.token' });
+
+      const result = await controller.completeRegistration(
+        requestFalso,
+        dto,
+        resposta,
+      );
+
+      expect(service.completeRegistration).toHaveBeenCalledWith(
+        'user@test.com',
+        dto,
+        { ip: requestFalso.ip, userAgent: requestFalso.headers['user-agent'] },
+      );
+      expect(resposta.cookie).toHaveBeenCalledWith(
+        'edutrace_session',
+        'novo.jwt.token',
+        opcoesDoCookie,
+      );
+      expect(result).toEqual({ message: 'Cadastro concluído.' });
+    });
+
+    it('should keep the current cookie when the CPF belongs to another account', async () => {
+      const resposta = criarRespostaFalsa();
+      jest
+        .spyOn(service, 'completeRegistration')
+        .mockRejectedValue(
+          new ConflictException(
+            'Este CPF já está cadastrado. Procure o administrador.',
+          ),
+        );
+
+      await expect(
+        controller.completeRegistration(requestFalso, dto, resposta),
+      ).rejects.toThrow(ConflictException);
+      expect(resposta.cookie).not.toHaveBeenCalled();
     });
   });
 
