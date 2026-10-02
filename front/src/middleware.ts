@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server'
 import type { SessionUser } from './services/auth/sessionUser'
 import { ADMIN, ESTUDANTE } from './consts'
 import { findSessionCookie, isSecureSessionCookie } from './utils/sessionCookie'
+import { registrationRedirect } from './utils/registrationRedirect'
 
 // O token é verificado pelo backend, que é quem guarda o segredo de assinatura.
 // Decodificar o JWT aqui aceitaria qualquer assinatura e tornaria as regras
@@ -110,6 +111,11 @@ export async function middleware(request: NextRequest) {
   }
 
   const payload = session.payload
+
+  const registrationTarget = registrationRedirect(payload, pathname)
+  if (registrationTarget) {
+    return NextResponse.redirect(new URL(registrationTarget, request.url))
+  }
 
   // A senha do primeiro acesso foi definida pelo administrador. Até que o
   // usuário troque, nenhuma outra tela fica acessível — o backend recusa as

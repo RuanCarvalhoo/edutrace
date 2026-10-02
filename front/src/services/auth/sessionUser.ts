@@ -6,6 +6,7 @@ export type SessionUser = {
   name: string;
   id_level: number;
   must_change_password?: boolean;
+  must_complete_registration?: boolean;
 };
 
 // O front não lê o token. Quem identifica o usuário é o back, a partir do

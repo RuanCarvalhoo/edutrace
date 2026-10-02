@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { IS_PUBLIC_KEY, jwtConstants } from './constants/constants';
 import { ALLOW_PASSWORD_CHANGE_KEY } from './decorators/allow-password-change.decorator';
+import { ALLOW_INCOMPLETE_REGISTRATION_KEY } from './decorators/allow-incomplete-registration.decorator';
 import { SessionsService } from 'src/sessions/sessions.service';
 import { sessionCookieName } from 'src/common/session-cookie';
 
@@ -64,6 +65,22 @@ export class AuthGuard implements CanActivate {
       if (payload.must_change_password && !allowsPasswordChange) {
         throw new ForbiddenException(
           'Defina uma nova senha antes de continuar.',
+        );
+      }
+
+      // Conta criada pelo login com Google sem CPF nem senha cadastrados: o
+      // token só abre as rotas necessárias para concluir o cadastro.
+      const allowsIncompleteRegistration = this.reflector.get<boolean>(
+        ALLOW_INCOMPLETE_REGISTRATION_KEY,
+        context.getHandler(),
+      );
+
+      if (
+        payload.must_complete_registration &&
+        !allowsIncompleteRegistration
+      ) {
+        throw new ForbiddenException(
+          'Cadastre o CPF e a senha antes de continuar.',
         );
       }
 

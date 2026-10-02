@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
+  ConflictException,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -72,6 +73,7 @@ describe('AuthService', () => {
           useValue: {
             findOne: jest.fn(),
             findByActivationToken: jest.fn(),
+            completeGoogleRegistration: jest.fn(),
             setPasswordResetToken: jest.fn(),
             incrementPasswordResetAttempts: jest.fn(),
             clearPasswordResetToken: jest.fn(),
@@ -1088,6 +1090,121 @@ describe('AuthService', () => {
           compromisedPasswordService.assertNotCompromised,
         ).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('cadastro pendente da conta criada pelo Google', () => {
+    const googleUser = {
+      ...mockUser,
+      email: 'aluno@discente.ifpe.edu.br',
+      cpf: 'google:1234567890',
+    };
+    const dto = { cpf: '01234567890', password: 'senhaNovaSegura1' };
+
+    it('should mark the token of an account that still has the Google placeholder', async () => {
+      jest.spyOn(usersService, 'findOne').mockResolvedValue(googleUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await service.signIn(googleUser.email, 'senhaDefinidaPorRecuperacao');
+
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ must_complete_registration: true }),
+      );
+    });
+
+    it('should not mark the token of an account with a real CPF', async () => {
+      jest.spyOn(usersService, 'findOne').mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await service.signIn(mockUser.email, 'plainPassword');
+
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ must_complete_registration: false }),
+      );
+    });
+
+    it('should store the CPF and the password and issue a token without the mark', async () => {
+      jest.spyOn(usersService, 'findOne').mockResolvedValue(googleUser);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('senhaHash');
+      jest
+        .spyOn(usersService, 'completeGoogleRegistration')
+        .mockResolvedValue({ ...googleUser, cpf: dto.cpf });
+
+      const result = await service.completeRegistration(googleUser.email, dto, {
+        ip: '10.0.0.1',
+        userAgent: 'jest',
+      });
+
+      expect(
+        compromisedPasswordService.assertNotCompromised,
+      ).toHaveBeenCalledWith(dto.password);
+      expect(bcrypt.hash).toHaveBeenCalledWith(dto.password, 10);
+      expect(usersService.completeGoogleRegistration).toHaveBeenCalledWith(
+        googleUser.email,
+        dto.cpf,
+        'senhaHash',
+      );
+      expect(sessionsService.revokeAllFromUser).toHaveBeenCalledWith(
+        googleUser.id,
+      );
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ must_complete_registration: false }),
+      );
+      expect(result).toEqual({ access_token: 'mock.jwt.token' });
+    });
+
+    it('should refuse an account whose registration is already complete', async () => {
+      jest.spyOn(usersService, 'findOne').mockResolvedValue(mockUser);
+
+      await expect(
+        service.completeRegistration(mockUser.email, dto),
+      ).rejects.toThrow(
+        new BadRequestException('O cadastro desta conta já está completo.'),
+      );
+      expect(usersService.completeGoogleRegistration).not.toHaveBeenCalled();
+    });
+
+    it('should refuse when the account of the token no longer exists', async () => {
+      jest.spyOn(usersService, 'findOne').mockResolvedValue(null);
+
+      await expect(
+        service.completeRegistration(googleUser.email, dto),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(usersService.completeGoogleRegistration).not.toHaveBeenCalled();
+    });
+
+    it('should keep the account pending when the password is common or breached', async () => {
+      jest.spyOn(usersService, 'findOne').mockResolvedValue(googleUser);
+      jest
+        .spyOn(compromisedPasswordService, 'assertNotCompromised')
+        .mockRejectedValue(
+          new BadRequestException(COMPROMISED_PASSWORD_MESSAGE),
+        );
+
+      await expect(
+        service.completeRegistration(googleUser.email, {
+          ...dto,
+          password: 'password123',
+        }),
+      ).rejects.toThrow(new BadRequestException(COMPROMISED_PASSWORD_MESSAGE));
+      expect(usersService.completeGoogleRegistration).not.toHaveBeenCalled();
+    });
+
+    it('should propagate the conflict when the CPF belongs to another account', async () => {
+      jest.spyOn(usersService, 'findOne').mockResolvedValue(googleUser);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('senhaHash');
+      jest
+        .spyOn(usersService, 'completeGoogleRegistration')
+        .mockRejectedValue(
+          new ConflictException(
+            'Este CPF já está cadastrado. Procure o administrador.',
+          ),
+        );
+
+      await expect(
+        service.completeRegistration(googleUser.email, dto),
+      ).rejects.toThrow(ConflictException);
+      expect(sessionsService.create).not.toHaveBeenCalled();
     });
   });
 });
