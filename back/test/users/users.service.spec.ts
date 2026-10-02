@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { createHash } from 'node:crypto';
 import { PrismaService } from 'src/database/prisma.service';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { SessionsService } from 'src/sessions/sessions.service';
+import { MailService } from 'src/mail/mail.service';
 import { PUBLIC_USER_SELECT } from 'src/users/users.select';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { UsersService } from 'src/users/users.service';
@@ -15,6 +17,7 @@ describe('UsersService', () => {
   let service: UsersService;
   let prisma: PrismaService;
   let sessionsService: SessionsService;
+  let mailService: MailService;
 
   const mockUser = {
     id: 1,
@@ -27,6 +30,8 @@ describe('UsersService', () => {
     password_reset_token: null,
     password_reset_expires: null,
     password_reset_attempts: 0,
+    activation_token: null,
+    activation_expires: null,
     must_change_password: false,
     failed_login_attempts: 0,
     locked_until: null,
@@ -63,6 +68,12 @@ describe('UsersService', () => {
           },
         },
         {
+          provide: MailService,
+          useValue: {
+            sendAccountActivationLink: jest.fn(),
+          },
+        },
+        {
           provide: PrismaService,
           useValue: {
             user: {
@@ -84,6 +95,7 @@ describe('UsersService', () => {
     service = module.get<UsersService>(UsersService);
     prisma = module.get<PrismaService>(PrismaService);
     sessionsService = module.get<SessionsService>(SessionsService);
+    mailService = module.get<MailService>(MailService);
   });
 
   it('should be defined', () => {
@@ -91,22 +103,46 @@ describe('UsersService', () => {
   });
 
   describe('create', () => {
-    it('should hash the password and create a user with default level', async () => {
-      const createDto = {
-        full_name: 'Test User',
-        cpf: '12345678900',
-        email: 'test@test.com',
-        password: 'plainPassword',
-        affliation: 'Test',
-        pedagogical_manager: 'Manager',
-      };
+    const createDto = {
+      full_name: 'Test User',
+      cpf: '12345678900',
+      email: 'test@test.com',
+      affliation: 'Test',
+      pedagogical_manager: 'Manager',
+    };
+    let frontendUrl: string | undefined;
 
+    beforeEach(() => {
+      frontendUrl = process.env.FRONTEND_URL;
+      process.env.FRONTEND_URL = 'https://edutrace.example.com';
       jest.mocked(bcryptjs.hash).mockResolvedValue('hashedPassword' as never);
       jest.spyOn(prisma.user, 'create').mockResolvedValue(mockUser);
+    });
 
-      const result = await service.create(createDto as any);
+    afterEach(() => {
+      jest.useRealTimers();
+      if (frontendUrl === undefined) {
+        delete process.env.FRONTEND_URL;
+      } else {
+        process.env.FRONTEND_URL = frontendUrl;
+      }
+    });
 
-      expect(bcryptjs.hash).toHaveBeenCalledWith('plainPassword', 10);
+    const createdData = () =>
+      (prisma.user.create as jest.Mock).mock.calls[0][0].data as Record<
+        string,
+        unknown
+      >;
+
+    it('should create the account with a random password and without the forced change', async () => {
+      await service.create(createDto as any);
+
+      expect(bcryptjs.hash).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+        ),
+        10,
+      );
       expect(prisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
           select: PUBLIC_USER_SELECT,
@@ -114,36 +150,103 @@ describe('UsersService', () => {
             password: 'hashedPassword',
             id_level: LEVELS.ALUNO_ESTUDANTE,
             id_current_phase: PHASES.TRIAGEM,
-            must_change_password: true,
+            must_change_password: false,
           }),
         }),
       );
-      expect(result).toEqual(mockUser);
+    });
+
+    it('should store only the hash of the activation token, valid for 24 hours', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-10-01T12:00:00.000Z'));
+
+      await service.create(createDto as any);
+
+      expect(createdData().activation_token).toMatch(/^[0-9a-f]{64}$/);
+      expect(createdData().activation_expires).toEqual(
+        new Date('2026-10-02T12:00:00.000Z'),
+      );
+    });
+
+    it('should e-mail the link carrying the token whose hash was stored', async () => {
+      await service.create(createDto as any);
+
+      const [to, link, expiresAt] = jest.mocked(
+        mailService.sendAccountActivationLink,
+      ).mock.calls[0];
+      const prefix = 'https://edutrace.example.com/definir-senha#token=';
+      const token = link.slice(prefix.length);
+
+      expect(to).toBe(createDto.email);
+      expect(link.startsWith(prefix)).toBe(true);
+      expect(createHash('sha256').update(token).digest('hex')).toBe(
+        createdData().activation_token,
+      );
+      expect(expiresAt).toEqual(createdData().activation_expires);
+    });
+
+    it('should return the created user and tell that the e-mail was sent', async () => {
+      const result = await service.create(createDto as any);
+
+      expect(result).toEqual({ ...mockUser, activation_email_sent: true });
+    });
+
+    it('should keep the account and tell the administrator when the e-mail fails', async () => {
+      const error = jest
+        .spyOn((service as unknown as { logger: Logger }).logger, 'error')
+        .mockImplementation(() => undefined);
+      jest
+        .mocked(mailService.sendAccountActivationLink)
+        .mockRejectedValue(new Error('SMTP indisponível'));
+
+      const result = await service.create(createDto as any);
+
+      expect(result).toEqual({ ...mockUser, activation_email_sent: false });
+      expect(error).toHaveBeenCalledWith(
+        `Falha ao enviar o link de definição de senha do usuário ${mockUser.id}`,
+        expect.anything(),
+      );
+      const [, link] = jest.mocked(mailService.sendAccountActivationLink).mock
+        .calls[0];
+      const logged = JSON.stringify(error.mock.calls);
+      expect(logged).not.toContain(mockUser.email);
+      expect(logged).not.toContain(link.split('#token=')[1]);
+      error.mockRestore();
+    });
+
+    it('should tell the administrator when FRONTEND_URL is missing and the link cannot be built', async () => {
+      delete process.env.FRONTEND_URL;
+      const error = jest
+        .spyOn((service as unknown as { logger: Logger }).logger, 'error')
+        .mockImplementation(() => undefined);
+
+      const result = await service.create(createDto as any);
+
+      expect(result).toEqual({ ...mockUser, activation_email_sent: false });
+      expect(mailService.sendAccountActivationLink).not.toHaveBeenCalled();
+      error.mockRestore();
     });
 
     it('should use provided id_level when given', async () => {
-      const createDto = {
-        full_name: 'Admin',
-        cpf: '01234567890',
-        email: 'admin@test.com',
-        password: 'adminPass',
-        affliation: 'Test',
-        pedagogical_manager: 'Manager',
-        id_level: LEVELS.ADMIN,
-      };
-
-      jest.mocked(bcryptjs.hash).mockResolvedValue('hashedPassword' as never);
-      jest
-        .spyOn(prisma.user, 'create')
-        .mockResolvedValue({ ...mockUser, id_level: LEVELS.ADMIN });
-
-      await service.create(createDto as any);
+      await service.create({ ...createDto, id_level: LEVELS.ADMIN } as any);
 
       expect(prisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ id_level: LEVELS.ADMIN }),
         }),
       );
+    });
+  });
+
+  describe('findByActivationToken', () => {
+    it('should look the account up by the token hash', async () => {
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue(mockUser);
+
+      const result = await service.findByActivationToken('hash-do-token');
+
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { activation_token: 'hash-do-token' },
+      });
+      expect(result).toEqual(mockUser);
     });
   });
 
@@ -260,7 +363,6 @@ describe('UsersService', () => {
       full_name: 'Usuário de Teste',
       cpf: '01234567890',
       email: 'usuario@edutrace.com',
-      password: 'senhaSegura123',
     };
 
     function uniqueViolation(target: string[]) {
@@ -292,6 +394,17 @@ describe('UsersService', () => {
       await expect(service.create(createDto as any)).rejects.toThrow(
         new ConflictException('Este e-mail já está cadastrado.'),
       );
+    });
+
+    it('should not send the activation e-mail when the account is not created', async () => {
+      jest
+        .spyOn(prisma.user, 'create')
+        .mockRejectedValue(uniqueViolation(['email']));
+
+      await expect(service.create(createDto as any)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mailService.sendAccountActivationLink).not.toHaveBeenCalled();
     });
 
     it('should propagate errors that are not a unique violation', async () => {
@@ -471,7 +584,7 @@ describe('UsersService', () => {
   });
 
   describe('updatePassword', () => {
-    it('should update the password, invalidate the reset token and clear the login lock in the same update', async () => {
+    it('should update the password, invalidate the reset token and the activation link, and clear the login lock in the same update', async () => {
       const updatedUser = { ...mockUser, password: 'newHashedPassword' };
       jest.spyOn(prisma.user, 'update').mockResolvedValue(updatedUser);
 
@@ -487,6 +600,8 @@ describe('UsersService', () => {
           password_reset_token: null,
           password_reset_expires: null,
           password_reset_attempts: 0,
+          activation_token: null,
+          activation_expires: null,
           must_change_password: false,
           failed_login_attempts: 0,
           locked_until: null,

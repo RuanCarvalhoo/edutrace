@@ -23,6 +23,8 @@ model User {
   password_reset_token    String?
   password_reset_expires  DateTime?
   password_reset_attempts Int        @default(0)
+  activation_token        String?    @unique
+  activation_expires      DateTime?
   must_change_password    Boolean    @default(false)
   failed_login_attempts   Int        @default(0)
   locked_until            DateTime?

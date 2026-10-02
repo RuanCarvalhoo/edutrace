@@ -11,7 +11,6 @@ import { ADMIN } from "@/consts";
 import TermoConsentimento from "@/components/TermoConsentimento";
 import Loading from "@/components/Loading";
 import {
-  PasswordField,
   TextField,
   fieldBoxClass,
   fieldInputClass,
@@ -39,14 +38,10 @@ function AdminUserCreatePage() {
     nome: "",
     email: "",
     cpf: "",
-    senha: "",
-    confirmarSenha: "",
     id_level: "2",
   });
   const router = useRouter();
   const { user, loading } = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [mostrarTermos, setMostrarTermos] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -89,12 +84,23 @@ function AdminUserCreatePage() {
         throw new Error("Erro ao realizar o cadastro.");
       }
 
-      await Swal.fire({
-        icon: "success",
-        title: "Cadastro realizado com sucesso!",
-        confirmButtonColor: "#047857",
-        confirmButtonText: "Ok",
-      });
+      await Swal.fire(
+        response.activation_email_sent
+          ? {
+              icon: "success",
+              title: "Cadastro realizado com sucesso!",
+              text: `Enviamos para ${resultado.data.email} um link para definir a senha. Ele vale por 24 horas.`,
+              confirmButtonColor: "#047857",
+              confirmButtonText: "Ok",
+            }
+          : {
+              icon: "warning",
+              title: "Conta criada, mas o e-mail não foi enviado",
+              text: `Oriente ${resultado.data.email} a usar a opção "Esqueci minha senha" na tela de login para definir a senha.`,
+              confirmButtonColor: "#047857",
+              confirmButtonText: "Entendi",
+            },
+      );
       router.push("/home");
     } catch (error) {
       avisarErro(
@@ -155,7 +161,8 @@ function AdminUserCreatePage() {
                   Cadastrar pessoas
                 </h1>
                 <p className="mt-2.5 text-[14px] font-medium leading-5 text-[#5872a8] sm:mt-5 sm:text-[16px] sm:leading-6">
-                  Crie a conta e defina o nível de acesso.
+                  Crie a conta e defina o nível de acesso. A pessoa recebe por
+                  e-mail um link para definir a própria senha.
                 </p>
 
                 <div className="mt-4 space-y-2.5 sm:mt-7 sm:space-y-4">
@@ -216,28 +223,6 @@ function AdminUserCreatePage() {
                       </select>
                     </span>
                   </label>
-
-                  <PasswordField
-                    label="Senha"
-                    required
-                    minLength={8}
-                    autoComplete="new-password"
-                    value={formData.senha}
-                    onChange={setCampo("senha")}
-                    visible={showPassword}
-                    onToggle={() => setShowPassword((valor) => !valor)}
-                  />
-
-                  <PasswordField
-                    label="Confirmar senha"
-                    required
-                    minLength={8}
-                    autoComplete="new-password"
-                    value={formData.confirmarSenha}
-                    onChange={setCampo("confirmarSenha")}
-                    visible={showConfirmPassword}
-                    onToggle={() => setShowConfirmPassword((valor) => !valor)}
-                  />
                 </div>
 
                 <div className="mt-4 flex items-start gap-2 sm:mt-5">

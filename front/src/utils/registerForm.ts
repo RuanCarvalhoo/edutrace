@@ -4,8 +4,6 @@ export type RegisterFormData = {
   nome: string;
   email: string;
   cpf: string;
-  senha: string;
-  confirmarSenha: string;
   id_level: string;
 };
 
@@ -21,10 +19,6 @@ export function buildRegisterData(
     return { ok: false, error: "É necessário aceitar o Termo de Consentimento." };
   }
 
-  if (form.senha !== form.confirmarSenha) {
-    return { ok: false, error: "As senhas não coincidem." };
-  }
-
   const cpf = form.cpf.replace(/\D/g, "");
 
   if (cpf.length !== 11) {
@@ -37,7 +31,6 @@ export function buildRegisterData(
       full_name: form.nome.trim(),
       email: form.email.trim().toLowerCase(),
       cpf,
-      password: form.senha,
       id_level: Number(form.id_level),
     },
   };

@@ -10,6 +10,7 @@ import { UsersService } from 'src/users/users.service';
 import { MailService } from 'src/mail/mail.service';
 import { SessionsService } from 'src/sessions/sessions.service';
 import * as bcrypt from 'bcryptjs';
+import { createHash } from 'node:crypto';
 
 jest.mock('bcryptjs');
 
@@ -32,6 +33,8 @@ describe('AuthService', () => {
     password_reset_token: null,
     password_reset_expires: null,
     password_reset_attempts: 0,
+    activation_token: null,
+    activation_expires: null,
     must_change_password: false,
     failed_login_attempts: 0,
     locked_until: null,
@@ -63,6 +66,7 @@ describe('AuthService', () => {
           provide: UsersService,
           useValue: {
             findOne: jest.fn(),
+            findByActivationToken: jest.fn(),
             setPasswordResetToken: jest.fn(),
             incrementPasswordResetAttempts: jest.fn(),
             clearPasswordResetToken: jest.fn(),
@@ -936,6 +940,95 @@ describe('AuthService', () => {
       await expect(
         service.resetPassword('user@test.com', '123456', 'novaSenha123'),
       ).rejects.toThrow(new UnauthorizedException('Código inválido ou expirado.'));
+      expect(usersService.updatePassword).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('activateAccount', () => {
+    const token = 'token-recebido-no-link';
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const pendingUser = {
+      ...mockUser,
+      activation_token: tokenHash,
+      activation_expires: new Date(Date.now() + 60 * 60 * 1000),
+    };
+
+    it('should look the account up by the token hash, never by the token', async () => {
+      jest
+        .spyOn(usersService, 'findByActivationToken')
+        .mockResolvedValue(pendingUser);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('novoHash');
+
+      await service.activateAccount(token, 'novaSenha123');
+
+      expect(usersService.findByActivationToken).toHaveBeenCalledWith(
+        tokenHash,
+      );
+    });
+
+    it('should store the chosen password, which also consumes the link', async () => {
+      jest
+        .spyOn(usersService, 'findByActivationToken')
+        .mockResolvedValue(pendingUser);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('novoHash');
+
+      const result = await service.activateAccount(token, 'novaSenha123');
+
+      expect(bcrypt.hash).toHaveBeenCalledWith('novaSenha123', 10);
+      expect(usersService.updatePassword).toHaveBeenCalledWith(
+        pendingUser.email,
+        'novoHash',
+      );
+      expect(result).toEqual({ message: 'Senha definida com sucesso.' });
+    });
+
+    it('should close the sessions opened before and not open a new one', async () => {
+      jest
+        .spyOn(usersService, 'findByActivationToken')
+        .mockResolvedValue(pendingUser);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('novoHash');
+
+      await service.activateAccount(token, 'novaSenha123');
+
+      expect(sessionsService.revokeAllFromUser).toHaveBeenCalledWith(
+        pendingUser.id,
+      );
+      expect(sessionsService.create).not.toHaveBeenCalled();
+      expect(jwtService.signAsync).not.toHaveBeenCalled();
+    });
+
+    it('should refuse a token that does not match any account', async () => {
+      jest
+        .spyOn(usersService, 'findByActivationToken')
+        .mockResolvedValue(null);
+
+      await expect(
+        service.activateAccount('token-qualquer', 'novaSenha123'),
+      ).rejects.toThrow(new UnauthorizedException('Link inválido ou expirado.'));
+      expect(usersService.updatePassword).not.toHaveBeenCalled();
+    });
+
+    it('should refuse an expired link with the same message', async () => {
+      jest.spyOn(usersService, 'findByActivationToken').mockResolvedValue({
+        ...pendingUser,
+        activation_expires: new Date(Date.now() - 1000),
+      });
+
+      await expect(
+        service.activateAccount(token, 'novaSenha123'),
+      ).rejects.toThrow(new UnauthorizedException('Link inválido ou expirado.'));
+      expect(usersService.updatePassword).not.toHaveBeenCalled();
+    });
+
+    it('should refuse a token stored without a deadline', async () => {
+      jest.spyOn(usersService, 'findByActivationToken').mockResolvedValue({
+        ...pendingUser,
+        activation_expires: null,
+      });
+
+      await expect(
+        service.activateAccount(token, 'novaSenha123'),
+      ).rejects.toThrow(UnauthorizedException);
       expect(usersService.updatePassword).not.toHaveBeenCalled();
     });
   });
