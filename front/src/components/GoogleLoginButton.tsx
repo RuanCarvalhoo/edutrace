@@ -115,7 +115,10 @@ export function GoogleLoginButton({ onCredential, onError }: Props) {
         strategy="afterInteractive"
         onReady={() => setScriptReady(true)}
       />
-      <div ref={containerRef} className="flex min-h-11 w-full justify-center" />
+      <div
+        ref={containerRef}
+        className="flex min-h-11 w-full justify-center [contain:inline-size]"
+      />
     </>
   );
 }
