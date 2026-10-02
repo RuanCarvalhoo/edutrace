@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import { PasswordField } from "@/components/auth/AuthFields";
 import { activateAccount } from "@/services/auth/passwordReset";
-import { readActivationToken } from "@/utils/activationToken";
+import {
+  describeActivationError,
+  readActivationToken,
+} from "@/utils/activationToken";
 
 export default function DefinirSenhaClient() {
   const [token] = useState(() => readActivationToken(window.location.hash));
@@ -67,7 +70,9 @@ export default function DefinirSenhaClient() {
       void Swal.fire({
         icon: "error",
         title: "Não foi possível definir a senha",
-        text: `${error instanceof Error ? error.message : String(error)} Se o link venceu, use a opção "Esqueci minha senha".`,
+        text: describeActivationError(
+          error instanceof Error ? error.message : String(error),
+        ),
         confirmButtonColor: "#047857",
         confirmButtonText: "Entendi",
       });
