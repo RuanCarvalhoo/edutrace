@@ -15,6 +15,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { SessionsService } from 'src/sessions/sessions.service';
 import { LEVELS } from 'src/constants';
 import { hashActivationToken } from './activation-token';
+import { CompromisedPasswordService } from './compromised-password.service';
 
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
 const MAX_RESET_ATTEMPTS = 5;
@@ -60,6 +61,7 @@ export class AuthService {
     private jwtService: JwtService,
     private mailService: MailService,
     private sessionsService: SessionsService,
+    private compromisedPasswordService: CompromisedPasswordService,
   ) {}
 
   async signIn(
@@ -360,6 +362,10 @@ export class AuthService {
       );
     }
 
+    if (dto.password) {
+      await this.compromisedPasswordService.assertNotCompromised(dto.password);
+    }
+
     const newEmail = dto.email?.trim();
     const isChangingEmail = !!newEmail && newEmail !== currentEmail;
 
@@ -429,6 +435,8 @@ export class AuthService {
   ): Promise<{ message: string }> {
     const user = await this.validateResetCode(email, code);
 
+    await this.compromisedPasswordService.assertNotCompromised(password);
+
     const hashedPassword = await bcrypt.hash(password, 10);
     await this.userService.updatePassword(email, hashedPassword);
 
@@ -457,6 +465,8 @@ export class AuthService {
     ) {
       throw new UnauthorizedException('Link inválido ou expirado.');
     }
+
+    await this.compromisedPasswordService.assertNotCompromised(password);
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await this.userService.updatePassword(user.email, hashedPassword);

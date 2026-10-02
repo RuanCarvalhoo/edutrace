@@ -9,6 +9,10 @@ import { AuthService } from 'src/auth/auth.service';
 import { UsersService } from 'src/users/users.service';
 import { MailService } from 'src/mail/mail.service';
 import { SessionsService } from 'src/sessions/sessions.service';
+import {
+  COMPROMISED_PASSWORD_MESSAGE,
+  CompromisedPasswordService,
+} from 'src/auth/compromised-password.service';
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
 
@@ -20,6 +24,7 @@ describe('AuthService', () => {
   let jwtService: JwtService;
   let mailService: MailService;
   let sessionsService: SessionsService;
+  let compromisedPasswordService: CompromisedPasswordService;
 
   const mockUser = {
     id: 1,
@@ -91,6 +96,12 @@ describe('AuthService', () => {
           },
         },
         {
+          provide: CompromisedPasswordService,
+          useValue: {
+            assertNotCompromised: jest.fn(),
+          },
+        },
+        {
           provide: SessionsService,
           useValue: {
             create: jest.fn(),
@@ -108,6 +119,9 @@ describe('AuthService', () => {
     jwtService = module.get<JwtService>(JwtService);
     mailService = module.get<MailService>(MailService);
     sessionsService = module.get<SessionsService>(SessionsService);
+    compromisedPasswordService = module.get<CompromisedPasswordService>(
+      CompromisedPasswordService,
+    );
   });
 
   it('should be defined', () => {
@@ -942,6 +956,138 @@ describe('AuthService', () => {
         service.activateAccount(token, 'novaSenha123'),
       ).rejects.toThrow(UnauthorizedException);
       expect(usersService.updatePassword).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('senha comum ou vazada', () => {
+    const compromised = () =>
+      jest
+        .spyOn(compromisedPasswordService, 'assertNotCompromised')
+        .mockRejectedValue(
+          new BadRequestException(COMPROMISED_PASSWORD_MESSAGE),
+        );
+
+    describe('activateAccount', () => {
+      const token = 'token-recebido-no-link';
+      const pendingUser = {
+        ...mockUser,
+        activation_token: createHash('sha256').update(token).digest('hex'),
+        activation_expires: new Date(Date.now() + 60 * 60 * 1000),
+      };
+
+      it('should check the chosen password and keep the link when it is refused', async () => {
+        jest
+          .spyOn(usersService, 'findByActivationToken')
+          .mockResolvedValue(pendingUser);
+        compromised();
+
+        await expect(
+          service.activateAccount(token, 'password123'),
+        ).rejects.toThrow(new BadRequestException(COMPROMISED_PASSWORD_MESSAGE));
+        expect(
+          compromisedPasswordService.assertNotCompromised,
+        ).toHaveBeenCalledWith('password123');
+        expect(usersService.updatePassword).not.toHaveBeenCalled();
+      });
+
+      it('should not check the password of an invalid link', async () => {
+        jest
+          .spyOn(usersService, 'findByActivationToken')
+          .mockResolvedValue(null);
+
+        await expect(
+          service.activateAccount('token-qualquer', 'novaSenha123'),
+        ).rejects.toThrow(UnauthorizedException);
+        expect(
+          compromisedPasswordService.assertNotCompromised,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('resetPassword', () => {
+      it('should check the new password and keep the old one when it is refused', async () => {
+        jest
+          .spyOn(usersService, 'findOne')
+          .mockResolvedValue(mockUserWithResetToken);
+        (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+        compromised();
+
+        await expect(
+          service.resetPassword('user@test.com', '123456', 'password123'),
+        ).rejects.toThrow(new BadRequestException(COMPROMISED_PASSWORD_MESSAGE));
+        expect(
+          compromisedPasswordService.assertNotCompromised,
+        ).toHaveBeenCalledWith('password123');
+        expect(usersService.updatePassword).not.toHaveBeenCalled();
+      });
+
+      it('should not check the password when the code is wrong', async () => {
+        jest
+          .spyOn(usersService, 'findOne')
+          .mockResolvedValue(mockUserWithResetToken);
+        (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+        await expect(
+          service.resetPassword('user@test.com', '000000', 'novaSenha123'),
+        ).rejects.toThrow(UnauthorizedException);
+        expect(
+          compromisedPasswordService.assertNotCompromised,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('updateProfile', () => {
+      it('should check the new password and keep the current one when it is refused', async () => {
+        jest.spyOn(usersService, 'findOne').mockResolvedValue(mockUser);
+        (bcrypt.compare as jest.Mock)
+          .mockResolvedValueOnce(true)
+          .mockResolvedValueOnce(false);
+        compromised();
+
+        await expect(
+          service.updateProfile('user@test.com', {
+            password: 'password123',
+            currentPassword: 'senhaAtual123',
+          }),
+        ).rejects.toThrow(new BadRequestException(COMPROMISED_PASSWORD_MESSAGE));
+        expect(
+          compromisedPasswordService.assertNotCompromised,
+        ).toHaveBeenCalledWith('password123');
+        expect(usersService.updateProfile).not.toHaveBeenCalled();
+      });
+
+      it('should not check anything when the current password is wrong', async () => {
+        jest.spyOn(usersService, 'findOne').mockResolvedValue(mockUser);
+        (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+        await expect(
+          service.updateProfile('user@test.com', {
+            password: 'novaSenha123',
+            currentPassword: 'senhaErrada',
+          }),
+        ).rejects.toThrow(UnauthorizedException);
+        expect(
+          compromisedPasswordService.assertNotCompromised,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('should not check a password when only the e-mail changes', async () => {
+        jest.spyOn(usersService, 'findOne').mockResolvedValueOnce(mockUser);
+        jest.spyOn(usersService, 'findOne').mockResolvedValueOnce(null);
+        (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+        jest
+          .spyOn(usersService, 'updateProfile')
+          .mockResolvedValue({ ...mockUser, email: 'novo@test.com' });
+
+        await service.updateProfile('user@test.com', {
+          email: 'novo@test.com',
+          currentPassword: 'senhaAtual123',
+        });
+
+        expect(
+          compromisedPasswordService.assertNotCompromised,
+        ).not.toHaveBeenCalled();
+      });
     });
   });
 });
