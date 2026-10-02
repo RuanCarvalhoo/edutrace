@@ -24,11 +24,9 @@ export default function LoginPageWrapper() {
 }
 
 function LoginPage() {
-  const contactEmail = "admin@pe-estudantes.edu.br";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showFirstAccessInfo, setShowFirstAccessInfo] = useState(false);
   const router = useRouter();
   const { setUser } = useAuth();
   const [release, setRelease] = useState<{ label: string; url: string | null }>(
@@ -224,44 +222,6 @@ function LoginPage() {
                   >
                     Esqueci minha senha
                   </a>
-                </div>
-
-                <div
-                  className="mt-3 flex w-full items-center gap-4 px-10 sm:mt-5 sm:px-14"
-                  aria-hidden="true"
-                >
-                  <span className="h-px flex-1 bg-[#d9e1ee]" />
-                  <span className="text-[15px] font-bold text-[#7182aa]">
-                    ou
-                  </span>
-                  <span className="h-px flex-1 bg-[#d9e1ee]" />
-                </div>
-
-                <div className="mt-2.5 flex w-full items-center justify-center text-center sm:mt-5">
-                  <div className="text-[15px]">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowFirstAccessInfo((current) => !current)
-                      }
-                      className="font-bold text-[#00866b] underline"
-                    >
-                      Primeiro acesso?
-                    </button>
-
-                    {showFirstAccessInfo && (
-                      <p className="mt-3 text-sm font-medium text-[#5571a6]">
-                        Entre em contato com um administrador pelo e-mail{" "}
-                        <a
-                          className="font-bold text-[#00866b] underline"
-                          href={`mailto:${contactEmail}`}
-                        >
-                          {contactEmail}
-                        </a>
-                        .
-                      </p>
-                    )}
-                  </div>
                 </div>
               </form>
 
