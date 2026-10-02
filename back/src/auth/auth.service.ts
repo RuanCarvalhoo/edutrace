@@ -14,6 +14,9 @@ import * as bcrypt from 'bcryptjs';
 import { randomInt, randomUUID } from 'node:crypto';
 import { SessionsService } from 'src/sessions/sessions.service';
 import { hashActivationToken } from './activation-token';
+import { CompromisedPasswordService } from './compromised-password.service';
+import { CompleteRegistrationDto } from './dto/complete-registration.dto';
+import { hasPendingGoogleRegistration } from 'src/users/google-account';
 
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
 const MAX_RESET_ATTEMPTS = 5;
@@ -59,6 +62,7 @@ export class AuthService {
     private jwtService: JwtService,
     private mailService: MailService,
     private sessionsService: SessionsService,
+    private compromisedPasswordService: CompromisedPasswordService,
   ) {}
 
   async signIn(
@@ -238,6 +242,7 @@ export class AuthService {
       email: string;
       full_name: string;
       id_level: number;
+      cpf: string;
       must_change_password: boolean;
     },
     context?: SessionContext,
@@ -259,6 +264,7 @@ export class AuthService {
       name: user.full_name,
       id_level: user.id_level,
       must_change_password: user.must_change_password,
+      must_complete_registration: hasPendingGoogleRegistration(user),
       jti: jti,
     };
 
@@ -350,6 +356,10 @@ export class AuthService {
       );
     }
 
+    if (dto.password) {
+      await this.compromisedPasswordService.assertNotCompromised(dto.password);
+    }
+
     const newEmail = dto.email?.trim();
     const isChangingEmail = !!newEmail && newEmail !== currentEmail;
 
@@ -372,6 +382,35 @@ export class AuthService {
     // Trocar e-mail ou senha encerra as sessões abertas antes da mudança: quem
     // usava a credencial antiga perde o acesso, e quem alterou continua com o
     // token novo devolvido aqui.
+    return this.issueSessionToken(updated, context);
+  }
+
+  // Conta criada pelo login com Google: a pessoa só usa o sistema depois de
+  // cadastrar CPF e senha. A identidade vem do token (currentEmail), e a sessão
+  // é reemitida sem a marca de cadastro pendente.
+  async completeRegistration(
+    currentEmail: string,
+    dto: CompleteRegistrationDto,
+    context?: SessionContext,
+  ): Promise<{ access_token: string }> {
+    const user = await this.userService.findOne(currentEmail);
+    if (!user) {
+      throw new UnauthorizedException('Usuário não encontrado');
+    }
+
+    if (!hasPendingGoogleRegistration(user)) {
+      throw new BadRequestException('O cadastro desta conta já está completo.');
+    }
+
+    await this.compromisedPasswordService.assertNotCompromised(dto.password);
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const updated = await this.userService.completeGoogleRegistration(
+      user.email,
+      dto.cpf,
+      hashedPassword,
+    );
+
     return this.issueSessionToken(updated, context);
   }
 
@@ -419,6 +458,8 @@ export class AuthService {
   ): Promise<{ message: string }> {
     const user = await this.validateResetCode(email, code);
 
+    await this.compromisedPasswordService.assertNotCompromised(password);
+
     const hashedPassword = await bcrypt.hash(password, 10);
     await this.userService.updatePassword(email, hashedPassword);
 
@@ -447,6 +488,8 @@ export class AuthService {
     ) {
       throw new UnauthorizedException('Link inválido ou expirado.');
     }
+
+    await this.compromisedPasswordService.assertNotCompromised(password);
 
     const hashedPassword = await bcrypt.hash(password, 10);
     await this.userService.updatePassword(user.email, hashedPassword);

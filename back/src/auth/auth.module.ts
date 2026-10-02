@@ -7,6 +7,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { jwtConstants } from './constants/constants';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { SessionsModule } from 'src/sessions/sessions.module';
+import { CompromisedPasswordService } from './compromised-password.service';
 
 @Module({
   imports: [
@@ -30,6 +31,6 @@ import { SessionsModule } from 'src/sessions/sessions.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, CompromisedPasswordService],
 })
 export class AuthModule {}

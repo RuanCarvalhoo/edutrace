@@ -675,4 +675,65 @@ describe('UsersService', () => {
       expect(result).toEqual(mockUser);
     });
   });
+
+  describe('completeGoogleRegistration', () => {
+    it('should replace the placeholder with the CPF and store the password', async () => {
+      jest
+        .spyOn(prisma.user, 'update')
+        .mockResolvedValue({ ...mockUser, cpf: '01234567890' });
+
+      await service.completeGoogleRegistration(
+        'aluno@discente.ifpe.edu.br',
+        '01234567890',
+        'senhaHash',
+      );
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { email: 'aluno@discente.ifpe.edu.br' },
+        data: {
+          cpf: '01234567890',
+          password: 'senhaHash',
+          password_reset_token: null,
+          password_reset_expires: null,
+          password_reset_attempts: 0,
+          must_change_password: false,
+        },
+      });
+    });
+
+    it('should answer 409 and point to the administrator when the CPF belongs to another account', async () => {
+      jest.spyOn(prisma.user, 'update').mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '6.0.0',
+          meta: { target: ['cpf'] },
+        }),
+      );
+
+      await expect(
+        service.completeGoogleRegistration(
+          'aluno@discente.ifpe.edu.br',
+          '01234567890',
+          'senhaHash',
+        ),
+      ).rejects.toThrow(
+        new ConflictException(
+          'Este CPF já está cadastrado. Procure o administrador.',
+        ),
+      );
+    });
+
+    it('should propagate errors that are not a unique violation', async () => {
+      const erroQualquer = new Error('conexão perdida');
+      jest.spyOn(prisma.user, 'update').mockRejectedValue(erroQualquer);
+
+      await expect(
+        service.completeGoogleRegistration(
+          'aluno@discente.ifpe.edu.br',
+          '01234567890',
+          'senhaHash',
+        ),
+      ).rejects.toThrow(erroQualquer);
+    });
+  });
 });

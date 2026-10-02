@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ALLOW_PASSWORD_CHANGE_KEY } from 'src/auth/decorators/allow-password-change.decorator';
+import { ALLOW_INCOMPLETE_REGISTRATION_KEY } from 'src/auth/decorators/allow-incomplete-registration.decorator';
 import { SessionsService } from 'src/sessions/sessions.service';
 
 function createMockExecutionContext(
@@ -310,6 +311,55 @@ describe('AuthGuard', () => {
       const result = await guard.canActivate(context);
 
       expect(result).toBe(true);
+    });
+
+    describe('cadastro pendente da conta criada pelo Google', () => {
+      const payload = {
+        sub: 1,
+        email: 'aluno@discente.ifpe.edu.br',
+        id_level: 2,
+        must_change_password: false,
+        must_complete_registration: true,
+      };
+
+      const contextWith = (metadata: Record<string, unknown>) => {
+        jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
+        jest.spyOn(jwtService, 'verifyAsync').mockResolvedValue(payload);
+        (reflector.get as jest.Mock).mockImplementation((key: string) =>
+          key in metadata ? metadata[key] : key === 'levels' ? [] : undefined,
+        );
+
+        const mockRequest: any = {
+          headers: { authorization: 'Bearer valid.token' },
+        };
+        return {
+          switchToHttp: () => ({ getRequest: () => mockRequest }),
+          getHandler: () => ({}),
+          getClass: () => ({}),
+        } as any;
+      };
+
+      it('should block any route until the CPF and the password are registered', async () => {
+        await expect(guard.canActivate(contextWith({}))).rejects.toThrow(
+          new ForbiddenException('Cadastre o CPF e a senha antes de continuar.'),
+        );
+      });
+
+      it('should not open the routes reserved for the first password change', async () => {
+        await expect(
+          guard.canActivate(
+            contextWith({ [ALLOW_PASSWORD_CHANGE_KEY]: true }),
+          ),
+        ).rejects.toThrow(ForbiddenException);
+      });
+
+      it('should allow routes marked with AllowIncompleteRegistration', async () => {
+        await expect(
+          guard.canActivate(
+            contextWith({ [ALLOW_INCOMPLETE_REGISTRATION_KEY]: true }),
+          ),
+        ).resolves.toBe(true);
+      });
     });
 
     it('should throw UnauthorizedException when authorization scheme is not Bearer', async () => {

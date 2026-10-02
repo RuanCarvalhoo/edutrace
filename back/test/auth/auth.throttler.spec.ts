@@ -22,6 +22,9 @@ describe('AuthController rate limit', () => {
             signIn: jest.fn().mockResolvedValue({ access_token: 'token' }),
             forgotPassword: jest.fn().mockResolvedValue({ message: 'ok' }),
             activateAccount: jest.fn().mockResolvedValue({ message: 'ok' }),
+            completeRegistration: jest
+              .fn()
+              .mockResolvedValue({ access_token: 'token' }),
           },
         },
       ],
@@ -90,6 +93,22 @@ describe('AuthController rate limit', () => {
     }
 
     const response = await postActivate();
+
+    expect(response.status).toBe(429);
+  });
+
+  it('should also protect the registration of the Google account', async () => {
+    const postCompleteRegistration = () =>
+      request(app.getHttpServer())
+        .post('/auth/complete-registration')
+        .set('X-Forwarded-For', '10.0.0.5')
+        .send({ cpf: '01234567890', password: 'senhaNovaSegura1' });
+
+    for (let attempt = 0; attempt < LIMIT; attempt++) {
+      await postCompleteRegistration();
+    }
+
+    const response = await postCompleteRegistration();
 
     expect(response.status).toBe(429);
   });

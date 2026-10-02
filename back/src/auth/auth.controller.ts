@@ -19,9 +19,11 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { ActivateAccountDto } from './dto/activate-account.dto';
+import { CompleteRegistrationDto } from './dto/complete-registration.dto';
 import { AuthGuard } from './auth.guard';
 import { Public } from './constants/constants';
 import { AllowPasswordChange } from './decorators/allow-password-change.decorator';
+import { AllowIncompleteRegistration } from './decorators/allow-incomplete-registration.decorator';
 import { ApiBody } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import {
@@ -141,6 +143,7 @@ export class AuthController {
   }
 
   @AllowPasswordChange()
+  @AllowIncompleteRegistration()
   @UseGuards(AuthGuard)
   @Get('profile')
   @ApiBody({
@@ -152,6 +155,7 @@ export class AuthController {
   }
 
   @AllowPasswordChange()
+  @AllowIncompleteRegistration()
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post('logout')
@@ -189,6 +193,35 @@ export class AuthController {
     );
     this.setSessionCookie(response, access_token);
     return { message: 'Dados atualizados.' };
+  }
+
+  // Única rota de escrita aberta para a conta criada pelo Google que ainda não
+  // cadastrou CPF e senha. O rate limit reduz o uso da resposta de CPF já
+  // cadastrado para descobrir CPFs de outras contas.
+  @AllowIncompleteRegistration()
+  @UseGuards(AuthGuard, ThrottlerGuard)
+  @ApiBody({
+    type: CompleteRegistrationDto,
+    description:
+      'Cadastra o CPF e a senha da conta criada pelo login com Google.',
+  })
+  @HttpCode(HttpStatus.OK)
+  @Post('complete-registration')
+  async completeRegistration(
+    @Request() req,
+    @Body() dto: CompleteRegistrationDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{ message: string }> {
+    const { access_token } = await this.authService.completeRegistration(
+      req.user.email,
+      dto,
+      {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    );
+    this.setSessionCookie(response, access_token);
+    return { message: 'Cadastro concluído.' };
   }
 
   // O token vai só no cookie HttpOnly, fora do corpo, para nenhum JavaScript
