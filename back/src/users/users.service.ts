@@ -92,13 +92,12 @@ export class UsersService {
     passwordHash: string;
     googleSubject: string;
   }) {
+    // O login Google só define nome e perfil ao criar a conta. Uma conta que já
+    // existe mantém o que o administrador cadastrou, inclusive a troca de senha
+    // pendente.
     return this.prisma.user.upsert({
       where: { email: data.email },
-      update: {
-        full_name: data.fullName,
-        id_level: LEVELS.ALUNO_ESTUDANTE,
-        must_change_password: false,
-      },
+      update: {},
       create: {
         full_name: data.fullName,
         cpf: `google:${data.googleSubject}`,
