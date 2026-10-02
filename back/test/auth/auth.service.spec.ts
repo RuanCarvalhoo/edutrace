@@ -475,6 +475,42 @@ describe('AuthService', () => {
         expect.objectContaining({ email: discenteEmail, id_level: 3 }),
       );
     });
+
+    it('should keep the pending password change of a registered account that signs in with Google', async () => {
+      mockGoogleCredential(mockUser.email);
+      jest.spyOn(usersService, 'findOne').mockResolvedValue({
+        ...mockUserFirstAccess,
+        id_level: 4,
+      });
+
+      await service.signInWithGoogle('credencial');
+
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: mockUser.email,
+          id_level: 4,
+          must_change_password: true,
+        }),
+      );
+    });
+
+    it('should keep the pending password change of an existing @discente account', async () => {
+      mockGoogleCredential(discenteEmail);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('randomHash');
+      jest.spyOn(usersService, 'ensureGoogleStudentUser').mockResolvedValue({
+        ...mockUserFirstAccess,
+        email: discenteEmail,
+      });
+
+      await service.signInWithGoogle('credencial');
+
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: discenteEmail,
+          must_change_password: true,
+        }),
+      );
+    });
   });
 
   describe('updateProfile', () => {
