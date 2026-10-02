@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import Loading from "@/components/Loading";
 import { PasswordField, TextField } from "@/components/auth/AuthFields";
+import { EMAIL_PATTERN } from "@/utils/emailPattern";
 
 type Step = "email" | "code" | "password";
 
@@ -230,7 +231,7 @@ function ForgotPasswordPage() {
                       icon="/email.svg"
                       type="email"
                       required
-                      pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                      pattern={EMAIL_PATTERN}
                       inputMode="email"
                       autoComplete="email"
                       value={email}

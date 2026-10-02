@@ -17,6 +17,7 @@ import {
   fieldLabelClass,
 } from "@/components/auth/AuthFields";
 import { buildRegisterData } from "@/utils/registerForm";
+import { EMAIL_PATTERN } from "@/utils/emailPattern";
 
 const NIVEIS = [
   { value: "1", label: "Administrador" },
@@ -180,7 +181,7 @@ function AdminUserCreatePage() {
                     icon="/email.svg"
                     type="email"
                     required
-                    pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                    pattern={EMAIL_PATTERN}
                     inputMode="email"
                     autoComplete="email"
                     value={formData.email}
