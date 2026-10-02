@@ -66,6 +66,17 @@ describe('createValidationPipe', () => {
     expect(result).toHaveProperty('cpf', '01234567890');
   });
 
+  it('should discard a password sent in the user registration', async () => {
+    const result = await validate(CreateUserDto, {
+      full_name: 'Usuário de Teste',
+      email: 'usuario@edutrace.com',
+      password: 'senhaDoAdministrador',
+      cpf: '012.345.678-90',
+    });
+
+    expect(result).not.toHaveProperty('password');
+  });
+
   it('should reject a field with the wrong type', async () => {
     await expect(
       validate(CreateScreeningDto, {

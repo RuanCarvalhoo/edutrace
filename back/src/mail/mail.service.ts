@@ -89,6 +89,40 @@ export class MailService {
     });
   }
 
+  async sendAccountActivationLink(
+    to: string,
+    link: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    const horario = expiresAt.toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+    });
+
+    await this.getTransporter().sendMail({
+      from: process.env.MAIL_FROM,
+      to,
+      subject: 'EduTrace - Defina sua senha de acesso',
+      text: [
+        'Olá!',
+        '',
+        'Uma conta foi criada para você no EduTrace. Para acessar, defina sua senha pelo link abaixo:',
+        '',
+        link,
+        '',
+        `O link pode ser usado uma única vez e vale até ${horario} (horário de Brasília). Depois disso, use a opção "Esqueci minha senha" na tela de login.`,
+        '',
+        'Se você não esperava este e-mail, ignore-o.',
+      ].join('\n'),
+      html: [
+        '<p>Olá!</p>',
+        '<p>Uma conta foi criada para você no EduTrace. Para acessar, defina sua senha pelo link abaixo:</p>',
+        `<p><a href="${link}">Definir minha senha</a></p>`,
+        `<p>O link pode ser usado uma única vez e vale até <strong>${horario}</strong> (horário de Brasília). Depois disso, use a opção "Esqueci minha senha" na tela de login.</p>`,
+        '<p>Se você não esperava este e-mail, ignore-o.</p>',
+      ].join(''),
+    });
+  }
+
   async sendPasswordResetCode(to: string, code: string): Promise<void> {
     await this.getTransporter().sendMail({
       from: process.env.MAIL_FROM,

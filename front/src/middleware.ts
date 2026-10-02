@@ -80,7 +80,10 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   const isLoginPage = pathname === '/' || pathname === '/login'
-  const isPublicPage = isLoginPage || pathname === '/forgot-password'
+  const isPublicPage =
+    isLoginPage ||
+    pathname === '/forgot-password' ||
+    pathname === '/definir-senha'
   const changePasswordPage = '/alterar-dados'
 
   if (!sessionCookie) {

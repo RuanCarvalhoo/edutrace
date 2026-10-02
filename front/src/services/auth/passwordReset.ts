@@ -19,3 +19,7 @@ export async function verifyResetCode(email: string, code: string) {
 export async function resetPassword(email: string, code: string, password: string) {
   return postPasswordReset('/auth/reset-password', { email, code, password });
 }
+
+export async function activateAccount(token: string, password: string) {
+  return postPasswordReset('/auth/activate', { token, password });
+}
