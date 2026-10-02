@@ -292,6 +292,37 @@ export class UsersService {
     });
   }
 
+  // Conclui o cadastro da conta criada pelo login com Google: o CPF real
+  // substitui o provisório e a senha passa a existir. O CPF é único; um CPF que
+  // já pertence a outra conta nunca vincula as duas, porque bastaria saber o CPF
+  // de alguém para assumir a conta dele.
+  async completeGoogleRegistration(
+    email: string,
+    cpf: string,
+    hashedPassword: string,
+  ) {
+    try {
+      return await this.prisma.user.update({
+        where: { email: email },
+        data: {
+          cpf: cpf,
+          password: hashedPassword,
+          password_reset_token: null,
+          password_reset_expires: null,
+          password_reset_attempts: 0,
+          must_change_password: false,
+        },
+      });
+    } catch (error) {
+      if (this.duplicateFieldError(error)) {
+        throw new ConflictException(
+          'Este CPF já está cadastrado. Procure o administrador.',
+        );
+      }
+      throw error;
+    }
+  }
+
   async registerFailedLoginAttempt(email: string) {
     return this.prisma.user.update({
       where: { email: email },
