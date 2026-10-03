@@ -4,6 +4,7 @@ import type { SessionUser } from './services/auth/sessionUser'
 import { ADMIN, ESTUDANTE } from './consts'
 import { findSessionCookie, isSecureSessionCookie } from './utils/sessionCookie'
 import { registrationRedirect } from './utils/registrationRedirect'
+import { buildContentSecurityPolicy, createNonce } from './utils/contentSecurityPolicy'
 
 // O token é verificado pelo backend, que é quem guarda o segredo de assinatura.
 // Decodificar o JWT aqui aceitaria qualquer assinatura e tornaria as regras
@@ -74,6 +75,27 @@ function clearToken(response: NextResponse, name: string) {
   return response
 }
 
+// A página só é renderizada pelas saídas que chamam este helper; os
+// redirecionamentos não têm corpo. O Next lê o nonce da CSP enviada na
+// requisição e o aplica aos próprios scripts, e o layout lê o x-nonce para os
+// <Script> da aplicação.
+function renderPage(request: NextRequest) {
+  const nonce = createNonce()
+  const contentSecurityPolicy = buildContentSecurityPolicy({
+    nonce,
+    apiUrl: process.env.API_URL || process.env.NEXT_PUBLIC_API_EDU_TRACE,
+    isDev: process.env.NODE_ENV === 'development',
+  })
+
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', contentSecurityPolicy)
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } })
+  response.headers.set('Content-Security-Policy', contentSecurityPolicy)
+  return response
+}
+
 export async function middleware(request: NextRequest) {
   const sessionCookie = findSessionCookie(
     (name) => request.cookies.get(name)?.value,
@@ -88,7 +110,7 @@ export async function middleware(request: NextRequest) {
   const changePasswordPage = '/alterar-dados'
 
   if (!sessionCookie) {
-    return isPublicPage ? NextResponse.next() : redirectToLogin(request)
+    return isPublicPage ? renderPage(request) : redirectToLogin(request)
   }
 
   const session = await checkSession(sessionCookie.value)
@@ -98,7 +120,7 @@ export async function middleware(request: NextRequest) {
   // navegação seguinte.
   if (session.status === 'invalid') {
     return clearToken(
-      isPublicPage ? NextResponse.next() : redirectToLogin(request),
+      isPublicPage ? renderPage(request) : redirectToLogin(request),
       sessionCookie.name,
     )
   }
@@ -107,7 +129,7 @@ export async function middleware(request: NextRequest) {
   // liberada, mas o cookie é preservado para que a sessão volte quando a API
   // responder de novo.
   if (session.status === 'unavailable') {
-    return isPublicPage ? NextResponse.next() : redirectToLogin(request)
+    return isPublicPage ? renderPage(request) : redirectToLogin(request)
   }
 
   const payload = session.payload
@@ -148,7 +170,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/home', request.url))
   }
 
-  return NextResponse.next()
+  return renderPage(request)
 }
 
 export const config = {
