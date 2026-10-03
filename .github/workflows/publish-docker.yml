@@ -21,8 +21,27 @@ env:
   FRONTEND_IMAGE_NAME: edutrace-frontend
 
 jobs:
-  publish:
-    runs-on: ubuntu-latest
+  build:
+    name: Build ${{ matrix.component }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        component: [backend, frontend]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+          - component: backend
+            context: ./back
+            title: EduTrace Backend
+            description: Backend do EduTrace
+          - component: frontend
+            context: ./front
+            title: EduTrace Frontend
+            description: Frontend do EduTrace
     env:
       VERSION: ${{ github.event.release.tag_name || inputs.version }}
 
@@ -44,53 +63,102 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.OWNER_LC }}/edutrace-${{ matrix.component }},push-by-digest=true,name-canonical=true,push=true
+          sbom: true
+          provenance: mode=min
+          build-args: ${{ matrix.component == 'frontend' && format('NEXT_PUBLIC_API_EDU_TRACE={0}', secrets.NEXT_PUBLIC_API_EDU_TRACE) || '' }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.title }}
+            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Export digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: digests-${{ matrix.component }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        component: [backend, frontend]
+    env:
+      VERSION: ${{ github.event.release.tag_name || inputs.version }}
+
+    steps:
+      - name: Normalize repository owner
+        run: echo "OWNER_LC=${OWNER,,}" >> "$GITHUB_ENV"
+        env:
+          OWNER: ${{ github.repository_owner }}
+
+      - name: Download digests
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.component }}-*
+          merge-multiple: true
+
+      - name: Login GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
-      - name: Build and push backend
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          context: ./back
-          file: ./back/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          sbom: true
-          provenance: mode=min
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/${{ env.BACKEND_IMAGE_NAME }}:${{ env.VERSION }}
-            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/${{ env.BACKEND_IMAGE_NAME }}:latest
-          labels: |
-            org.opencontainers.image.title=EduTrace Backend
-            org.opencontainers.image.description=Backend do EduTrace
-            org.opencontainers.image.version=${{ env.VERSION }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.licenses=Apache-2.0
+      - name: Create multi-platform tags
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/edutrace-${{ matrix.component }}
+        run: |
+          docker buildx imagetools create \
+            -t "$IMAGE:$VERSION" \
+            -t "$IMAGE:latest" \
+            $(printf "$IMAGE@sha256:%s " *)
 
-      - name: Build and push frontend
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          context: ./front
-          file: ./front/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          sbom: true
-          provenance: mode=min
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ env.VERSION }}
-            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
-          build-args: |
-            NEXT_PUBLIC_API_EDU_TRACE=${{ secrets.NEXT_PUBLIC_API_EDU_TRACE }}
-          labels: |
-            org.opencontainers.image.title=EduTrace Frontend
-            org.opencontainers.image.description=Frontend do EduTrace
-            org.opencontainers.image.version=${{ env.VERSION }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.licenses=Apache-2.0
+      - name: Inspect published platforms
+        run: docker buildx imagetools inspect "$REGISTRY/$OWNER_LC/edutrace-${{ matrix.component }}:$VERSION"
+
+  sbom:
+    runs-on: ubuntu-latest
+    needs: publish
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ github.event.release.tag_name || inputs.version }}
+
+    steps:
+      - name: Normalize repository owner
+        run: echo "OWNER_LC=${OWNER,,}" >> "$GITHUB_ENV"
+        env:
+          OWNER: ${{ github.repository_owner }}
 
       - name: Create SBOM directory
         run: mkdir -p sbom
