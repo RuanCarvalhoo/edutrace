@@ -6,7 +6,7 @@ import { shouldLoadClarity } from "@/utils/clarity";
 
 const DEFAULT_CLARITY_PROJECT_ID = "y4ln1tkqfy";
 
-export function MicrosoftClarity() {
+export function MicrosoftClarity({ nonce }: { nonce?: string }) {
   const pathname = usePathname();
 
   if (!shouldLoadClarity(pathname)) {
@@ -14,7 +14,7 @@ export function MicrosoftClarity() {
   }
 
   return (
-    <Script id="microsoft-clarity" strategy="afterInteractive">
+    <Script id="microsoft-clarity" strategy="afterInteractive" nonce={nonce}>
       {`(function(c,l,a,r,i,t,y){
         i=(c.__ENV__&&c.__ENV__.CLARITY_PROJECT_ID)||"${DEFAULT_CLARITY_PROJECT_ID}";
         if(!i||i==="off"){return;}

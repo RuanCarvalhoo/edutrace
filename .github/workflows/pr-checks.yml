@@ -235,6 +235,37 @@ jobs:
 
           echo "OK: o backend roda com UID $uid, sobe com migrations e seed e não altera o próprio código."
 
+      # Cabeçalhos da OWASP REST Security Cheat Sheet na resposta real da API,
+      # com NODE_ENV=production como em produção.
+      - name: Verificar os cabeçalhos de segurança do backend
+        run: |
+          headers=$(curl -s -o /dev/null -D - http://localhost:3000/auth/profile | tr -d '\r')
+          echo "$headers"
+          status=0
+
+          for esperado in \
+            "x-content-type-options: nosniff" \
+            "x-frame-options: DENY" \
+            "strict-transport-security: max-age=63072000; includeSubDomains" \
+            "content-security-policy: default-src 'none';frame-ancestors 'none'" \
+            "cache-control: no-store"; do
+            if ! grep -qixF "$esperado" <<< "$headers"; then
+              echo "ERRO: falta o cabeçalho '$esperado'."
+              status=1
+            fi
+          done
+
+          if grep -qi '^x-powered-by:' <<< "$headers"; then
+            echo "ERRO: a resposta revela a tecnologia do servidor em X-Powered-By."
+            status=1
+          fi
+
+          if [ "$status" -ne 0 ]; then
+            exit 1
+          fi
+
+          echo "OK: a API envia os cabeçalhos de segurança e não revela a tecnologia do servidor."
+
 # --------------------------------------------------------------------
 # FRONTEND LINT + BUILD ----------------------------------------------
 # --------------------------------------------------------------------
@@ -347,6 +378,72 @@ jobs:
           fi
 
           echo "OK: o frontend roda com UID $uid, grava a config de runtime e não altera o próprio código."
+
+      # Cabeçalhos da OWASP HTTP Headers Cheat Sheet e CSP estrita na resposta
+      # real da página. O nonce precisa mudar a cada resposta e estar em todos os
+      # <script> da página, senão o próprio Next é bloqueado.
+      - name: Verificar os cabeçalhos de segurança do frontend
+        run: |
+          primeira=$(curl -s -D - -o pagina.html http://localhost:3000/login | tr -d '\r')
+          segunda=$(curl -s -D - -o /dev/null http://localhost:3000/login | tr -d '\r')
+          echo "$primeira"
+          status=0
+
+          for esperado in \
+            "x-frame-options: DENY" \
+            "x-content-type-options: nosniff" \
+            "referrer-policy: strict-origin-when-cross-origin" \
+            "strict-transport-security: max-age=63072000; includeSubDomains" \
+            "permissions-policy: camera=(), microphone=(), geolocation=()"; do
+            if ! grep -qixF "$esperado" <<< "$primeira"; then
+              echo "ERRO: falta o cabeçalho '$esperado'."
+              status=1
+            fi
+          done
+
+          if grep -qi '^x-powered-by:' <<< "$primeira"; then
+            echo "ERRO: a resposta revela a tecnologia do servidor em X-Powered-By."
+            status=1
+          fi
+
+          csp=$(grep -i '^content-security-policy:' <<< "$primeira" || true)
+          for diretiva in "'strict-dynamic'" "object-src 'none'" "base-uri 'none'" "frame-ancestors 'none'"; do
+            if ! grep -qF "$diretiva" <<< "$csp"; then
+              echo "ERRO: a CSP não tem $diretiva."
+              status=1
+            fi
+          done
+
+          if grep -qE "script-src[^;]*'unsafe-(inline|eval)'" <<< "$csp"; then
+            echo "ERRO: o script-src libera 'unsafe-inline' ou 'unsafe-eval' em produção."
+            status=1
+          fi
+
+          nonce=$(grep -oE "'nonce-[^']+'" <<< "$csp" | head -n 1 | sed -E "s/^'nonce-(.*)'$/\1/")
+          outro_nonce=$(grep -i '^content-security-policy:' <<< "$segunda" | grep -oE "'nonce-[^']+'" | head -n 1 | sed -E "s/^'nonce-(.*)'$/\1/")
+
+          if [ -z "$nonce" ] || [ "$nonce" = "$outro_nonce" ]; then
+            echo "ERRO: a CSP precisa de um nonce novo a cada resposta (obtidos: '$nonce' e '$outro_nonce')."
+            status=1
+          fi
+
+          scripts=$(grep -o '<script[^>]*>' pagina.html | wc -l)
+          com_nonce=$(grep -o '<script[^>]*>' pagina.html | grep -cF "nonce=\"$nonce\"" || true)
+          if [ "$scripts" -eq 0 ] || [ "$com_nonce" -lt "$scripts" ]; then
+            echo "ERRO: só $com_nonce dos $scripts <script> da página levam o nonce da CSP."
+            status=1
+          fi
+
+          if ! curl -s -o /dev/null -D - http://localhost:3000/definir-senha | tr -d '\r' | grep -qixF "referrer-policy: no-referrer"; then
+            echo "ERRO: /definir-senha perdeu o Referrer-Policy no-referrer."
+            status=1
+          fi
+
+          if [ "$status" -ne 0 ]; then
+            exit 1
+          fi
+
+          echo "OK: a página envia os cabeçalhos de segurança e a CSP com nonce aplicado a todos os scripts."
 
       # A tela de login mostra a versão gravada no build da imagem, e não a
       # última release do GitHub, que não diz o que está em execução. O build
