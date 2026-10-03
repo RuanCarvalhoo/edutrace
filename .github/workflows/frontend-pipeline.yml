@@ -21,7 +21,13 @@ on:
 
 permissions:
   contents: read
-  
+
+# Uma execução por vez, na ordem dos merges. Com duas em paralelo, a que
+# terminava por último deixava na tag latest a imagem do merge mais antigo.
+concurrency:
+  group: ${{ github.workflow }}
+  queue: max
+
 env:
   IMAGE_NAME: ${{ github.repository_owner }}/${{ github.event.repository.name }}-frontend
   REGISTRY: ghcr.io
@@ -37,6 +43,14 @@ jobs:
     # condição o pipeline publicaria/deployaria código não mesclado.
     # Os demais jobs dependem deste (needs) e são pulados junto.
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    # O backend-pipeline e o frontend-pipeline numeram as mesmas releases. A
+    # reserva da versão roda uma de cada vez nas duas esteiras; em paralelo,
+    # merges próximos liam a mesma última versão e calculavam a mesma tag.
+    concurrency:
+      group: release-version
+      queue: max
+    permissions:
+      contents: write
     outputs:
       new_tag: ${{ steps.nova_tag.outputs.nova_tag }}
       tipo:    ${{ steps.tipo.outputs.tipo }}
@@ -85,27 +99,32 @@ jobs:
 
           echo "tipo=$tipo" >> "$GITHUB_OUTPUT"
 
-      - name: Obter a última tag da release
-        id: ultima
-        run: |
-          gh auth setup-git
-          tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
-          if [[ -z "$tag" ]]; then tag="0.0.0"; fi
-          echo "tag_atual=$tag" >> "$GITHUB_OUTPUT"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Calcular nova tag
+      # A versão parte da maior tag pela ordem numérica, e não da release mais
+      # recente. A tag é criada no commit do merge antes do build, para a
+      # próxima reserva já partir dela. Se a outra esteira do mesmo merge
+      # reservou primeiro, a versão é reaproveitada e as duas imagens saem com
+      # o mesmo número.
+      - name: Reservar a versão
         id: nova_tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TIPO: ${{ steps.tipo.outputs.tipo }}
         run: |
-          IFS='.' read -r major minor patch <<< "${{ steps.ultima.outputs.tag_atual }}"
-          case "${{ steps.tipo.outputs.tipo }}" in
-            bug-fix)           patch=$((patch + 1));;
-            nova-feature)      minor=$((minor + 1)); patch=0;;
-            marco-no-projeto)  major=$((major + 1)); minor=0; patch=0;;
-          esac
-          nova_tag="${major}.${minor}.${patch}"
-          echo "Nova tag: $nova_tag"
+          source .github/scripts/release-version.sh
+
+          tags=$(git ls-remote --tags origin | sed -E 's#\trefs/tags/# #')
+          nova_tag=$(printf '%s\n' "$tags" | version_for_commit "$GITHUB_SHA")
+
+          if [[ -n "$nova_tag" ]]; then
+            echo "O commit $GITHUB_SHA já tem a versão $nova_tag."
+          else
+            atual=$(printf '%s\n' "$tags" | awk '{ print $2 }' | highest_version)
+            nova_tag=$(bump_version "$atual" "$TIPO")
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/tags/$nova_tag" -f sha="$GITHUB_SHA" > /dev/null
+            echo "Versão $nova_tag reservada para $GITHUB_SHA (anterior: $atual)."
+          fi
+
           echo "nova_tag=$nova_tag" >> "$GITHUB_OUTPUT"
 
 # --------------------------------------------------------------------
@@ -281,6 +300,11 @@ jobs:
     name: 5. Criar release
     runs-on: ubuntu-latest
     needs: [docker-publish, prepare-tag]
+    # O back e o front do mesmo merge publicam a mesma release. Uma de cada
+    # vez, a segunda encontra a release pronta em vez de tentar criá-la junto.
+    concurrency:
+      group: release-publish
+      queue: max
     permissions:
       contents: write
     env:
@@ -288,18 +312,32 @@ jobs:
       TIPO:    ${{ needs.prepare-tag.outputs.tipo }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-    
+
+      # A release usa a tag reservada no job 1. Ela só vira a Latest se a
+      # versão for a maior entre as releases: merges próximos terminam fora de
+      # ordem, e a release criada por último pode ter o número menor.
       - name: Publicar release
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
-        with:
-          tag_name: ${{ env.NEW_TAG }}
-          name: Release ${{ env.NEW_TAG }}
-          generate_release_notes: true
-          body: |
-            Release gerada automaticamente a partir da Pull Request #${{ github.event.pull_request.number }}
-            Tipo de mudança: ${{ env.TIPO }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          source .github/scripts/release-version.sh
+
+          if gh release view "$NEW_TAG" > /dev/null 2>&1; then
+            echo "A release $NEW_TAG já existe."
+            exit 0
+          fi
+
+          latest=$(gh release list --limit 100 --exclude-drafts --json tagName --jq '.[].tagName' \
+            | is_latest_release "$NEW_TAG")
+          notas=$(printf 'Release gerada automaticamente a partir da Pull Request #%s\nTipo de mudança: %s' "$PR_NUMBER" "$TIPO")
+
+          gh release create "$NEW_TAG" \
+            --verify-tag \
+            --title "Release $NEW_TAG" \
+            --generate-notes \
+            --notes "$notas" \
+            --latest="$latest"
 
 # --------------------------------------------------------------------
 # 6) DEPLOY APP (Desabilitado temporariamente) -----------------------
