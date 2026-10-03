@@ -16,6 +16,7 @@ on:
       - '.env.production.example'
       - '.github/workflows/pr-checks.yml'
       - '.github/workflows/**'
+      - '.github/scripts/**'
       - '.github/dependabot.yml'
   workflow_dispatch:
 
@@ -57,6 +58,7 @@ jobs:
               - '.github/workflows/pr-checks.yml'
             ci_config:
               - '.github/workflows/**'
+              - '.github/scripts/**'
               - '.github/dependabot.yml'
 
 # --------------------------------------------------------------------
@@ -680,3 +682,46 @@ jobs:
           fi
 
           echo "OK: nenhum workflow emula arquitetura; cada plataforma builda no runner nativo."
+
+# --------------------------------------------------------------------
+# CONFIG: VERSÃO DAS RELEASES ----------------------------------------
+# --------------------------------------------------------------------
+  release-version-check:
+    name: "Config: Versão das releases"
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.ci_config == 'true' }}
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Testar o cálculo da versão
+        run: bash .github/scripts/release-version.test.sh
+
+      # Em paralelo, merges próximos liam a mesma última versão, publicavam a
+      # mesma tag e deixavam na latest a imagem do merge mais antigo. As duas
+      # esteiras precisam rodar em fila (queue: max mantém todas as execuções
+      # pendentes, em vez de cancelar as do meio) e compartilhar os grupos da
+      # reserva da versão e da criação da release.
+      - name: Verificar que as esteiras de release rodam em fila
+        run: |
+          status=0
+
+          for esteira in .github/workflows/backend-pipeline.yml .github/workflows/frontend-pipeline.yml; do
+            for regra in \
+              '.concurrency.queue == "max"' \
+              '.jobs["prepare-tag"].concurrency.group == "release-version" and .jobs["prepare-tag"].concurrency.queue == "max"' \
+              '.jobs["create-release"].concurrency.group == "release-publish" and .jobs["create-release"].concurrency.queue == "max"'; do
+              if [ "$(yq "$regra" "$esteira")" != "true" ]; then
+                echo "ERRO: $esteira não atende: $regra"
+                status=1
+              fi
+            done
+          done
+
+          if [ "$status" -ne 0 ]; then
+            exit 1
+          fi
+
+          echo "OK: as duas esteiras rodam em fila e reservam versão e release uma de cada vez."
