@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -20,15 +21,21 @@ export const metadata: Metadata = {
   icons: "/icon.png"
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="en">
       <head>
-        <Script src="/runtime-config.js" strategy="beforeInteractive" />
+        <Script
+          src="/runtime-config.js"
+          strategy="beforeInteractive"
+          nonce={nonce}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -37,7 +44,7 @@ export default function RootLayout({
         <ClientProviders>
           {children}
         </ClientProviders>
-        <MicrosoftClarity />
+        <MicrosoftClarity nonce={nonce} />
       </body>
     </html>
   );

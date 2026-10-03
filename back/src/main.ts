@@ -5,6 +5,7 @@ import { validateSecretKey } from './common/validate-secret-key';
 import { setupSwagger } from './common/setup-swagger';
 import { createValidationPipe } from './common/validation-pipe';
 import { csrfProtection } from './common/csrf-protection';
+import { securityHeaders } from './common/security-headers';
 import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
@@ -23,6 +24,7 @@ async function bootstrap() {
     .map((url) => url.trim())
     .filter(Boolean);
 
+  app.use(securityHeaders(isProduction));
   app.enableCors({
     origin: isProduction ? origins : true,
     credentials: true,
