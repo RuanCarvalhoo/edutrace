@@ -10,6 +10,12 @@ RUN npm ci
 
 COPY . .
 
+# Versão da release passada pela esteira. O Next grava o valor no código da
+# tela de login, que mostra a versão da imagem em execução. Sem o argumento,
+# como no build local, a tela mostra "local".
+ARG APP_VERSION=
+ENV NEXT_PUBLIC_APP_VERSION=$APP_VERSION
+
 RUN npm run build
 
 # Stage 2: Production image

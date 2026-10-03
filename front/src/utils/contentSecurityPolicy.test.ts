@@ -52,13 +52,18 @@ describe("buildContentSecurityPolicy", () => {
     assert.deepEqual(policy.get("form-action"), ["'self'"]);
   });
 
-  it("allows the API origin, the GitHub releases API, Google Identity and Clarity", () => {
+  it("allows the API origin, Google Identity and Clarity", () => {
     const connectSrc = policy.get("connect-src") ?? [];
 
     assert.ok(connectSrc.includes("https://edutrace.exemplo"));
-    assert.ok(connectSrc.includes("https://api.github.com"));
     assert.ok(connectSrc.includes("https://accounts.google.com/gsi/"));
     assert.ok(connectSrc.includes("https://*.clarity.ms"));
+  });
+
+  it("does not allow the GitHub API, which the login page no longer calls", () => {
+    const connectSrc = policy.get("connect-src") ?? [];
+
+    assert.ok(!connectSrc.includes("https://api.github.com"));
   });
 
   it("allows the Google sign in button iframe and stylesheet", () => {

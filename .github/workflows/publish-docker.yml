@@ -76,7 +76,9 @@ jobs:
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.OWNER_LC }}/edutrace-${{ matrix.component }},push-by-digest=true,name-canonical=true,push=true
           sbom: true
           provenance: mode=min
-          build-args: ${{ matrix.component == 'frontend' && format('NEXT_PUBLIC_API_EDU_TRACE={0}', secrets.NEXT_PUBLIC_API_EDU_TRACE) || '' }}
+          build-args: |
+            ${{ matrix.component == 'frontend' && format('NEXT_PUBLIC_API_EDU_TRACE={0}', secrets.NEXT_PUBLIC_API_EDU_TRACE) || '' }}
+            ${{ matrix.component == 'frontend' && format('APP_VERSION={0}', env.VERSION) || '' }}
           labels: |
             org.opencontainers.image.title=${{ matrix.title }}
             org.opencontainers.image.description=${{ matrix.description }}

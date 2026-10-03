@@ -326,7 +326,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Build da imagem Docker do frontend
-        run: docker build ./front -f front/Dockerfile -t edutrace-front:pr-check
+        run: docker build ./front -f front/Dockerfile --build-arg APP_VERSION=0.0.0 -t edutrace-front:pr-check
 
       # O servidor roda sem root. Só o runtime-config.js, que o entrypoint
       # reescreve a cada start, e o cache do otimizador do next/image pertencem
@@ -444,6 +444,32 @@ jobs:
           fi
 
           echo "OK: a página envia os cabeçalhos de segurança e a CSP com nonce aplicado a todos os scripts."
+
+      # A tela de login mostra a versão gravada no build da imagem, e não a
+      # última release do GitHub, que não diz o que está em execução. O build
+      # do gate passa APP_VERSION=0.0.0.
+      - name: Verificar a versão da imagem na tela de login
+        run: |
+          pagina=$(curl -s http://localhost:3000/login)
+          status=0
+
+          if ! grep -qF 'href="https://github.com/jardimdesoftware/edutrace/releases/tag/0.0.0"' <<< "$pagina"; then
+            echo "ERRO: a tela de login não mostra a versão 0.0.0 gravada no build da imagem."
+            status=1
+          fi
+
+          for chunk in $(grep -oE '/_next/static/chunks/[^"]+\.js' <<< "$pagina" | sort -u); do
+            if curl -s "http://localhost:3000$chunk" | grep -qF 'api.github.com'; then
+              echo "ERRO: $chunk ainda consulta a API do GitHub."
+              status=1
+            fi
+          done
+
+          if [ "$status" -ne 0 ]; then
+            exit 1
+          fi
+
+          echo "OK: a tela de login mostra a versão gravada no build da imagem."
 
 # --------------------------------------------------------------------
 # CONFIG – URL INTERNA DA API ----------------------------------------

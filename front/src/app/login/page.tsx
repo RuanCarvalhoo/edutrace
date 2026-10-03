@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import Image from "next/image";
 import { login, loginWithGoogle } from "@/services/auth/login";
 import { useRouter } from "next/navigation";
@@ -10,11 +10,9 @@ import Swal from "sweetalert2";
 import Loading from "@/components/Loading";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { EMAIL_PATTERN } from "@/utils/emailPattern";
+import { describeAppVersion } from "@/utils/appVersion";
 
-const GITHUB_LATEST_RELEASE_API =
-  "https://api.github.com/repos/jardimdesoftware/edutrace/releases/latest";
-const GITHUB_RELEASE_TAG_PREFIX =
-  "https://github.com/jardimdesoftware/edutrace/releases/tag/";
+const APP_VERSION = describeAppVersion(process.env.NEXT_PUBLIC_APP_VERSION);
 
 export default function LoginPageWrapper() {
   return (
@@ -30,27 +28,6 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const { setUser } = useAuth();
-  const [release, setRelease] = useState<{ label: string; url: string | null }>(
-    {
-      label: "",
-      url: null,
-    },
-  );
-
-  useEffect(() => {
-    fetch(GITHUB_LATEST_RELEASE_API)
-      .then((res) => res.json())
-      .then((data) => {
-        const tag = data.tag_name;
-        const url =
-          typeof data.html_url === "string" &&
-          data.html_url.startsWith(GITHUB_RELEASE_TAG_PREFIX)
-            ? data.html_url
-            : null;
-        setRelease({ label: tag, url });
-      })
-      .catch(() => setRelease({ label: "", url: null }));
-  }, []);
 
   const finishLogin = useCallback(async () => {
     setUser(await fetchSessionUser());
@@ -227,23 +204,21 @@ function LoginPage() {
               </form>
 
               <div className="bg-[#f1f4f8]/92 px-4 py-2 text-center text-[10px] font-medium leading-4 text-[#5571a6] sm:px-5 sm:py-5 sm:text-[12px]">
-                {release.label && (
-                  <p>
-                    Versão{" "}
-                    {release.url ? (
-                      <a
-                        className="hover:underline"
-                        href={release.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {release.label}
-                      </a>
-                    ) : (
-                      release.label
-                    )}
-                  </p>
-                )}
+                <p>
+                  Versão{" "}
+                  {APP_VERSION.url ? (
+                    <a
+                      className="hover:underline"
+                      href={APP_VERSION.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {APP_VERSION.label}
+                    </a>
+                  ) : (
+                    APP_VERSION.label
+                  )}
+                </p>
               </div>
             </div>
           </section>
