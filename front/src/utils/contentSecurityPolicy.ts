@@ -1,10 +1,9 @@
 // Origens de terceiros que a aplicação usa: o login com Google (Google Identity
-// Services), a versão exibida na tela de login (API de releases do GitHub) e o
-// Microsoft Clarity. Os valores seguem a documentação de CSP de cada serviço.
+// Services) e o Microsoft Clarity. Os valores seguem a documentação de CSP de
+// cada serviço.
 const GOOGLE_IDENTITY_CLIENT = "https://accounts.google.com/gsi/client";
 const GOOGLE_IDENTITY = "https://accounts.google.com/gsi/";
 const GOOGLE_IDENTITY_STYLE = "https://accounts.google.com/gsi/style";
-const GITHUB_API = "https://api.github.com";
 const CLARITY = ["https://*.clarity.ms", "https://c.bing.com"];
 
 type ContentSecurityPolicyOptions = {
@@ -52,7 +51,6 @@ export function buildContentSecurityPolicy({
     "connect-src": [
       "'self'",
       ...(apiOrigin ? [apiOrigin] : []),
-      GITHUB_API,
       GOOGLE_IDENTITY,
       ...CLARITY,
     ],
