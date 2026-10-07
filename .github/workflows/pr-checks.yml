@@ -394,7 +394,9 @@ jobs:
             "x-content-type-options: nosniff" \
             "referrer-policy: strict-origin-when-cross-origin" \
             "strict-transport-security: max-age=63072000; includeSubDomains" \
-            "permissions-policy: camera=(), microphone=(), geolocation=()"; do
+            "permissions-policy: camera=(), microphone=(), geolocation=()" \
+            "cross-origin-opener-policy: same-origin-allow-popups" \
+            "cross-origin-resource-policy: same-origin"; do
             if ! grep -qixF "$esperado" <<< "$primeira"; then
               echo "ERRO: falta o cabeçalho '$esperado'."
               status=1
@@ -407,6 +409,13 @@ jobs:
           fi
 
           csp=$(grep -i '^content-security-policy:' <<< "$primeira" || true)
+
+          # A CSP de reserva do next.config.ts não pode somar-se à do middleware:
+          # duas CSP na mesma resposta valem juntas e a de reserva bloquearia tudo.
+          if [ "$(grep -ci '^content-security-policy:' <<< "$primeira")" -ne 1 ]; then
+            echo "ERRO: a página deve enviar uma única CSP."
+            status=1
+          fi
           for diretiva in "'strict-dynamic'" "object-src 'none'" "base-uri 'none'" "frame-ancestors 'none'"; do
             if ! grep -qF "$diretiva" <<< "$csp"; then
               echo "ERRO: a CSP não tem $diretiva."
@@ -434,6 +443,16 @@ jobs:
             status=1
           fi
 
+          # O middleware não atende caminhos com ponto, e a página 404 deles saía
+          # sem CSP. A reserva do next.config.ts cobre esse caso.
+          for caminho in /robots.txt /sitemap.xml /icon.png; do
+            if ! curl -s -o /dev/null -D - "http://localhost:3000$caminho" | tr -d '\r' \
+              | grep -qixF "content-security-policy: default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"; then
+              echo "ERRO: $caminho não envia a CSP de reserva."
+              status=1
+            fi
+          done
+
           if ! curl -s -o /dev/null -D - http://localhost:3000/definir-senha | tr -d '\r' | grep -qixF "referrer-policy: no-referrer"; then
             echo "ERRO: /definir-senha perdeu o Referrer-Policy no-referrer."
             status=1
@@ -443,7 +462,7 @@ jobs:
             exit 1
           fi
 
-          echo "OK: a página envia os cabeçalhos de segurança e a CSP com nonce aplicado a todos os scripts."
+          echo "OK: a página envia os cabeçalhos de segurança e a CSP com nonce aplicado a todos os scripts, e o restante envia a CSP de reserva."
 
       # A tela de login mostra a versão gravada no build da imagem, e não a
       # última release do GitHub, que não diz o que está em execução. O build
