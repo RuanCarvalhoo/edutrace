@@ -30,6 +30,7 @@ Acesse a Wiki do Projeto para mais detalhes sobre requisitos, arquitetura e flux
 ## Segurança
 
 - O OWASP ZAP executa um baseline DAST semanalmente ou por acionamento manual.
+- Os cabeçalhos de segurança do frontend (CSP, HSTS, COOP, CORP e outros) e as decisões aceitas do ZAP estão em `front/next.config.ts` e `.zap/rules.tsv`. O que depende do nginx do host está em [`docs/security/reverse-proxy.md`](docs/security/reverse-proxy.md).
 - As imagens publicadas no GHCR incluem atestação SBOM e proveniência.
 - Cada publicação de release disponibiliza SBOMs CycloneDX do backend e do frontend como artefatos por 90 dias.
 
