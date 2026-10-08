@@ -1,0 +1,42 @@
+name: CD
+
+# Lab 6: depois que a esteira do back ou do front publica a imagem no GHCR e
+# cria a release, chama o webhook da stack no Portainer, que puxa a :latest e
+# recria os containers.
+on:
+  workflow_run:
+    workflows: ["backend-pipeline", "frontend-pipeline"]
+    types:
+      - completed
+
+permissions: {}
+
+# Back e front do mesmo merge terminam perto um do outro: um redeploy por vez.
+concurrency:
+  group: cd-portainer
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy via Portainer Webhook
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 5
+
+    steps:
+      - name: Aguardar propagação da imagem no GHCR
+        run: sleep 30
+
+      # -k: o Portainer usa certificado autoassinado na 9443. Sai quando o
+      # webhook passar a usar o domínio com certificado válido.
+      - name: Chamar webhook do Portainer
+        env:
+          PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST -k "$PORTAINER_WEBHOOK_URL")
+          echo "HTTP Status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -ne 204 ]; then
+            echo "❌ Webhook retornou status $HTTP_STATUS (esperado: 204)"
+            exit 1
+          fi
+          echo "✅ Webhook chamado com sucesso — Portainer está re-deployando a stack"
