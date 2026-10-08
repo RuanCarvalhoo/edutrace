@@ -109,7 +109,7 @@ function LoginPage() {
                   Login
                 </h1>
                 <p className="mt-2.5 text-[14px] font-medium leading-5 text-[#5872a8] sm:mt-6 sm:text-[17px] sm:leading-6">
-                  Acesse sua conta para continuar.
+                  Acesse sua conta para continuar. Publicado via CD (Lab 6).
                 </p>
 
                 <div className="mt-3.5 space-y-2 sm:mt-8 sm:space-y-5">
